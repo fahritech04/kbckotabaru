@@ -16,6 +16,8 @@
             <article class="surface-card p-4">
                 <h2 class="text-base font-black text-slate-900">{{ $club['name'] }}</h2>
                 <p class="mt-1 text-xs text-slate-500">{{ $club['city'] ?? '-' }} • Coach {{ $club['coach'] }}</p>
+                <p class="mt-1 text-xs text-slate-500">Penanggung Jawab: {{ $club['manager_name'] ?? '-' }}</p>
+                <p class="mt-1 text-xs text-slate-500">Nomor HP: {{ $club['manager_phone'] ?? '-' }}</p>
                 <p class="mt-1 text-xs text-slate-500">Email Klub: {{ $club['club_email'] ?? '-' }}</p>
                 <p class="mt-1 text-xs text-slate-500">Turnamen: {{ $club['tournament']['name'] ?? '-' }}</p>
                 <p class="mt-2 text-xs text-slate-600">Record: {{ $club['wins'] ?? 0 }}-{{ $club['losses'] ?? 0 }}</p>
@@ -40,6 +42,9 @@
             <thead>
                 <tr>
                     <th>Nama</th>
+                    <th>Penanggung Jawab</th>
+                    <th>Nomor HP</th>
+                    <th>Email Klub</th>
                     <th>Kota</th>
                     <th>Coach</th>
                     <th>Turnamen</th>
@@ -52,6 +57,9 @@
                 @forelse ($clubs as $club)
                     <tr>
                         <td class="font-semibold text-slate-900">{{ $club['name'] }}</td>
+                        <td class="text-slate-600">{{ $club['manager_name'] ?? '-' }}</td>
+                        <td class="text-slate-600">{{ $club['manager_phone'] ?? '-' }}</td>
+                        <td class="text-slate-600">{{ $club['club_email'] ?? '-' }}</td>
                         <td class="text-slate-600">{{ $club['city'] ?? '-' }}</td>
                         <td class="text-slate-600">{{ $club['coach'] }}</td>
                         <td class="text-slate-600">{{ $club['tournament']['name'] ?? '-' }}</td>
@@ -71,7 +79,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="text-center text-slate-500">Belum ada data klub.</td>
+                        <td colspan="10" class="text-center text-slate-500">Belum ada data klub.</td>
                     </tr>
                 @endforelse
             </tbody>

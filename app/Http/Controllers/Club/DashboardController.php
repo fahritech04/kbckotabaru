@@ -8,6 +8,7 @@ use App\Services\KbcRepository;
 use App\Services\SessionAuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -82,7 +83,14 @@ class DashboardController extends Controller
             return back()->withInput()->with('error', 'Turnamen yang dipilih tidak ditemukan.');
         }
 
+        $this->assertClubUniqueness(
+            $payload['club_name'],
+            $payload['manager_phone'],
+            $payload['club_email']
+        );
+
         $participants = $this->normalizeParticipantRows($request, $payload['players'] ?? []);
+        $this->assertParticipantUniqueness($participants);
 
         $uploadedPaths = [];
         $createdPlayerIds = [];
@@ -144,6 +152,7 @@ class DashboardController extends Controller
                     'jersey_number' => $participant['jersey_number'],
                     'photo_url' => $photoPath,
                     'ktp_url' => $ktpPath,
+                    'ktp_hash' => $participant['ktp_hash'] ?? null,
                     'position' => null,
                 ]);
 
@@ -192,6 +201,13 @@ class DashboardController extends Controller
             return back()->withInput()->with('error', 'Turnamen yang dipilih tidak ditemukan.');
         }
 
+        $this->assertClubUniqueness(
+            $payload['name'],
+            $payload['manager_phone'],
+            $payload['club_email'],
+            $club['id']
+        );
+
         $payload['logo_url'] = $this->imageUploadService->store(
             $request->file('club_logo'),
             'clubs/logos',
@@ -232,6 +248,8 @@ class DashboardController extends Controller
     {
         $rows = [];
         $jerseyNumbers = [];
+        $participantNames = [];
+        $ktpHashes = [];
 
         foreach ($players as $index => $player) {
             $name = trim((string) ($player['name'] ?? ''));
@@ -266,15 +284,104 @@ class DashboardController extends Controller
             }
             $jerseyNumbers[] = $number;
 
+            $nameKey = mb_strtolower($name);
+            if (in_array($nameKey, $participantNames, true)) {
+                throw ValidationException::withMessages([
+                    "players.{$index}.name" => 'Nama peserta duplikat pada form peserta.',
+                ]);
+            }
+            $participantNames[] = $nameKey;
+
+            $ktpHash = $this->hashUploadedFile($ktpFile);
+            if ($ktpHash !== null && in_array($ktpHash, $ktpHashes, true)) {
+                throw ValidationException::withMessages([
+                    "players.{$index}.ktp_image" => 'KTP peserta duplikat pada form peserta.',
+                ]);
+            }
+            if ($ktpHash !== null) {
+                $ktpHashes[] = $ktpHash;
+            }
+
             $rows[] = [
                 'name' => $name,
                 'jersey_number' => $number,
                 'photo_file' => $photoFile,
                 'ktp_file' => $ktpFile,
+                'ktp_hash' => $ktpHash,
+                'source_index' => $index,
             ];
         }
 
         return $rows;
+    }
+
+    private function assertClubUniqueness(
+        string $clubName,
+        string $managerPhone,
+        string $clubEmail,
+        ?string $ignoreClubId = null
+    ): void {
+        if ($this->repository->findClubByName($clubName, $ignoreClubId) !== null) {
+            throw ValidationException::withMessages([
+                'club_name' => 'Nama klub sudah terdaftar. Gunakan nama klub lain.',
+                'name' => 'Nama klub sudah terdaftar. Gunakan nama klub lain.',
+            ]);
+        }
+
+        if ($this->repository->findClubByManagerPhone($managerPhone, $ignoreClubId) !== null) {
+            throw ValidationException::withMessages([
+                'manager_phone' => 'Nomor HP penanggung jawab sudah digunakan klub lain.',
+            ]);
+        }
+
+        if ($this->repository->findClubByEmail($clubEmail, $ignoreClubId) !== null) {
+            throw ValidationException::withMessages([
+                'club_email' => 'Email klub sudah digunakan klub lain.',
+            ]);
+        }
+    }
+
+    private function assertParticipantUniqueness(array $participants): void
+    {
+        foreach ($participants as $participant) {
+            $sourceIndex = (int) ($participant['source_index'] ?? 0);
+
+            if ($this->repository->findPlayerByName($participant['name']) !== null) {
+                throw ValidationException::withMessages([
+                    "players.{$sourceIndex}.name" => 'Nama peserta sudah terdaftar di database.',
+                ]);
+            }
+
+            if ($this->repository->findPlayerByJerseyNumber((int) $participant['jersey_number']) !== null) {
+                throw ValidationException::withMessages([
+                    "players.{$sourceIndex}.jersey_number" => 'Nomor punggung sudah dipakai peserta lain di database.',
+                ]);
+            }
+
+            if (
+                ! empty($participant['ktp_hash'])
+                && $this->repository->findPlayerByKtpHash($participant['ktp_hash']) !== null
+            ) {
+                throw ValidationException::withMessages([
+                    "players.{$sourceIndex}.ktp_image" => 'KTP peserta sudah terdaftar di database.',
+                ]);
+            }
+        }
+    }
+
+    private function hashUploadedFile(?UploadedFile $file): ?string
+    {
+        if ($file === null) {
+            return null;
+        }
+
+        $realPath = $file->getRealPath();
+
+        if ($realPath === false || $realPath === '') {
+            return null;
+        }
+
+        return hash_file('sha256', $realPath) ?: null;
     }
 
     private function resolveClub(): ?array

@@ -7,6 +7,7 @@ use App\Services\ImageUploadService;
 use App\Services\KbcRepository;
 use App\Services\SessionAuthService;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -48,7 +49,7 @@ class PlayerController extends Controller
             return redirect()->route('club.onboarding')->with('error', 'Lengkapi data klub terlebih dahulu.');
         }
 
-        $payload = $this->validatePayload($request, $club['id']);
+        $payload = $this->validatePayload($request);
 
         $photoPath = $this->imageUploadService->store($request->file('photo'), 'clubs/players');
         $ktpPath = $this->imageUploadService->store($request->file('ktp_image'), 'clubs/players-ktp');
@@ -102,7 +103,7 @@ class PlayerController extends Controller
         $player = $this->repository->findPlayer($id);
         abort_if($player === null || ($player['club_id'] ?? null) !== $club['id'], 404);
 
-        $payload = $this->validatePayload($request, $club['id'], $id);
+        $payload = $this->validatePayload($request, $id, $player);
 
         $payload['photo_url'] = $this->imageUploadService->store(
             $request->file('photo'),
@@ -150,7 +151,7 @@ class PlayerController extends Controller
         return redirect()->route('club.players.index')->with('success', 'Pemain berhasil dihapus.');
     }
 
-    private function validatePayload(Request $request, string $clubId, ?string $ignorePlayerId = null): array
+    private function validatePayload(Request $request, ?string $ignorePlayerId = null, ?array $existingPlayer = null): array
     {
         $payload = $request->validate([
             'name' => ['required', 'string', 'max:150'],
@@ -159,23 +160,55 @@ class PlayerController extends Controller
             'ktp_image' => ['nullable', 'image', 'max:4096'],
         ]);
 
-        $duplicate = collect($this->repository->listPlayersByClub($clubId))
-            ->first(function (array $player) use ($payload, $ignorePlayerId): bool {
-                return (int) ($player['jersey_number'] ?? -1) === (int) $payload['jersey_number']
-                    && ($ignorePlayerId === null || $player['id'] !== $ignorePlayerId);
-            });
-
-        if ($duplicate !== null) {
+        if ($this->repository->findPlayerByName($payload['name'], $ignorePlayerId) !== null) {
             throw ValidationException::withMessages([
-                'jersey_number' => 'Nomor punggung sudah digunakan pemain lain di klub ini.',
+                'name' => 'Nama peserta sudah terdaftar di database.',
+            ]);
+        }
+
+        if ($this->repository->findPlayerByJerseyNumber((int) $payload['jersey_number'], $ignorePlayerId) !== null) {
+            throw ValidationException::withMessages([
+                'jersey_number' => 'Nomor punggung sudah digunakan peserta lain di database.',
+            ]);
+        }
+
+        $ktpHash = $existingPlayer['ktp_hash'] ?? null;
+        $ktpFile = $request->file('ktp_image');
+
+        if ($ktpFile !== null) {
+            $ktpHash = $this->hashUploadedFile($ktpFile);
+        }
+
+        if (
+            ! empty($ktpHash)
+            && $this->repository->findPlayerByKtpHash($ktpHash, $ignorePlayerId) !== null
+        ) {
+            throw ValidationException::withMessages([
+                'ktp_image' => 'KTP peserta sudah terdaftar di database.',
             ]);
         }
 
         return [
-            'name' => $payload['name'],
+            'name' => trim($payload['name']),
             'jersey_number' => (int) $payload['jersey_number'],
+            'ktp_hash' => $ktpHash,
             'position' => null,
         ];
+    }
+
+    private function hashUploadedFile(?UploadedFile $file): ?string
+    {
+        if ($file === null) {
+            return null;
+        }
+
+        $realPath = $file->getRealPath();
+
+        if ($realPath === false || $realPath === '') {
+            return null;
+        }
+
+        return hash_file('sha256', $realPath) ?: null;
     }
 
     private function resolveClub(): ?array

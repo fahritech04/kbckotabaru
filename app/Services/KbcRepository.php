@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class KbcRepository
 {
@@ -174,6 +176,60 @@ class KbcRepository
         });
     }
 
+    public function findClubByName(string $name, ?string $ignoreClubId = null): ?array
+    {
+        $normalizedName = mb_strtolower(trim($name));
+
+        if ($normalizedName === '') {
+            return null;
+        }
+
+        return collect($this->listClubsBasic())
+            ->first(function (array $club) use ($normalizedName, $ignoreClubId): bool {
+                if ($ignoreClubId !== null && ($club['id'] ?? null) === $ignoreClubId) {
+                    return false;
+                }
+
+                return mb_strtolower(trim((string) ($club['name'] ?? ''))) === $normalizedName;
+            });
+    }
+
+    public function findClubByManagerPhone(string $phone, ?string $ignoreClubId = null): ?array
+    {
+        $normalizedPhone = $this->normalizePhone($phone);
+
+        if ($normalizedPhone === '') {
+            return null;
+        }
+
+        return collect($this->listClubsBasic())
+            ->first(function (array $club) use ($normalizedPhone, $ignoreClubId): bool {
+                if ($ignoreClubId !== null && ($club['id'] ?? null) === $ignoreClubId) {
+                    return false;
+                }
+
+                return $this->normalizePhone((string) ($club['manager_phone'] ?? '')) === $normalizedPhone;
+            });
+    }
+
+    public function findClubByEmail(string $email, ?string $ignoreClubId = null): ?array
+    {
+        $normalizedEmail = mb_strtolower(trim($email));
+
+        if ($normalizedEmail === '') {
+            return null;
+        }
+
+        return collect($this->listClubsBasic())
+            ->first(function (array $club) use ($normalizedEmail, $ignoreClubId): bool {
+                if ($ignoreClubId !== null && ($club['id'] ?? null) === $ignoreClubId) {
+                    return false;
+                }
+
+                return mb_strtolower(trim((string) ($club['club_email'] ?? ''))) === $normalizedEmail;
+            });
+    }
+
     public function createClub(array $data): array
     {
         $created = $this->firestore->create(self::COLLECTION_CLUBS, $this->withTimestamps($data, true));
@@ -224,6 +280,54 @@ class KbcRepository
     public function findPlayer(string $id): ?array
     {
         return collect($this->listPlayers())->firstWhere('id', $id);
+    }
+
+    public function findPlayerByName(string $name, ?string $ignorePlayerId = null): ?array
+    {
+        $normalizedName = mb_strtolower(trim($name));
+
+        if ($normalizedName === '') {
+            return null;
+        }
+
+        return collect($this->listPlayers())
+            ->first(function (array $player) use ($normalizedName, $ignorePlayerId): bool {
+                if ($ignorePlayerId !== null && ($player['id'] ?? null) === $ignorePlayerId) {
+                    return false;
+                }
+
+                return mb_strtolower(trim((string) ($player['name'] ?? ''))) === $normalizedName;
+            });
+    }
+
+    public function findPlayerByJerseyNumber(int $jerseyNumber, ?string $ignorePlayerId = null): ?array
+    {
+        return collect($this->listPlayers())
+            ->first(function (array $player) use ($jerseyNumber, $ignorePlayerId): bool {
+                if ($ignorePlayerId !== null && ($player['id'] ?? null) === $ignorePlayerId) {
+                    return false;
+                }
+
+                return (int) ($player['jersey_number'] ?? -1) === $jerseyNumber;
+            });
+    }
+
+    public function findPlayerByKtpHash(string $ktpHash, ?string $ignorePlayerId = null): ?array
+    {
+        $needle = trim($ktpHash);
+
+        if ($needle === '') {
+            return null;
+        }
+
+        return collect($this->listPlayers())
+            ->first(function (array $player) use ($needle, $ignorePlayerId): bool {
+                if ($ignorePlayerId !== null && ($player['id'] ?? null) === $ignorePlayerId) {
+                    return false;
+                }
+
+                return $this->resolvePlayerKtpHash($player) === $needle;
+            });
     }
 
     public function createPlayer(array $data): array
@@ -484,5 +588,37 @@ class KbcRepository
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function normalizePhone(string $phone): string
+    {
+        return preg_replace('/\D+/', '', trim($phone)) ?? '';
+    }
+
+    private function resolvePlayerKtpHash(array $player): ?string
+    {
+        $storedHash = trim((string) ($player['ktp_hash'] ?? ''));
+
+        if ($storedHash !== '') {
+            return $storedHash;
+        }
+
+        $ktpPath = trim((string) ($player['ktp_url'] ?? ''));
+
+        if ($ktpPath === '' || Str::startsWith($ktpPath, ['http://', 'https://'])) {
+            return null;
+        }
+
+        if (! Storage::disk('public')->exists($ktpPath)) {
+            return null;
+        }
+
+        $absolutePath = Storage::disk('public')->path($ktpPath);
+
+        if (! is_file($absolutePath)) {
+            return null;
+        }
+
+        return hash_file('sha256', $absolutePath) ?: null;
     }
 }

@@ -14,7 +14,7 @@
     <section class="mt-6 surface-card p-6">
         <form action="{{ route('admin.clubs.store') }}" method="POST" enctype="multipart/form-data" class="space-y-1">
             @csrf
-            @include('admin.clubs.form-fields', ['tournaments' => $tournaments])
+            @include('admin.clubs.form-fields-create', ['tournaments' => $tournaments])
         </form>
     </section>
 @endsection
