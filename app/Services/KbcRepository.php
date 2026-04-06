@@ -18,6 +18,8 @@ class KbcRepository
 
     public const COLLECTION_MATCHES = 'matches';
 
+    private array $memo = [];
+
     public function __construct(private readonly FirestoreService $firestore) {}
 
     public function isFirebaseReady(): bool
@@ -32,17 +34,28 @@ class KbcRepository
 
     public function findUserByEmail(string $email): ?array
     {
-        return $this->firestore->whereFirst(self::COLLECTION_USERS, 'email', strtolower($email));
+        $normalizedEmail = strtolower($email);
+
+        return $this->remember(
+            "users:find:email:{$normalizedEmail}",
+            fn (): ?array => $this->firestore->whereFirst(self::COLLECTION_USERS, 'email', $normalizedEmail)
+        );
     }
 
     public function findUserByGoogleId(string $googleId): ?array
     {
-        return $this->firestore->whereFirst(self::COLLECTION_USERS, 'google_id', $googleId);
+        return $this->remember(
+            "users:find:google:{$googleId}",
+            fn (): ?array => $this->firestore->whereFirst(self::COLLECTION_USERS, 'google_id', $googleId)
+        );
     }
 
     public function findUserById(string $id): ?array
     {
-        return $this->firestore->find(self::COLLECTION_USERS, $id);
+        return $this->remember(
+            "users:find:id:{$id}",
+            fn (): ?array => $this->firestore->find(self::COLLECTION_USERS, $id)
+        );
     }
 
     public function createUser(array $data): array
@@ -59,81 +72,122 @@ class KbcRepository
             'email_verified_at' => $data['email_verified_at'] ?? null,
         ], true);
 
-        return $this->firestore->create(self::COLLECTION_USERS, $payload, $data['id'] ?? null);
+        $created = $this->firestore->create(self::COLLECTION_USERS, $payload, $data['id'] ?? null);
+        $this->clearMemo();
+
+        return $created;
     }
 
     public function updateUser(string $id, array $data): ?array
     {
-        return $this->firestore->update(self::COLLECTION_USERS, $id, $this->withTimestamps($data));
+        $updated = $this->firestore->update(self::COLLECTION_USERS, $id, $this->withTimestamps($data));
+        $this->clearMemo();
+
+        return $updated;
     }
 
     public function deleteUser(string $id): bool
     {
-        return $this->firestore->delete(self::COLLECTION_USERS, $id);
+        $deleted = $this->firestore->delete(self::COLLECTION_USERS, $id);
+        $this->clearMemo();
+
+        return $deleted;
     }
 
     public function listTournaments(): array
     {
-        return $this->firestore->all(self::COLLECTION_TOURNAMENTS, 'start_date', 'desc');
+        return $this->remember(
+            'tournaments:list',
+            fn (): array => $this->firestore->all(self::COLLECTION_TOURNAMENTS, 'start_date', 'desc')
+        );
     }
 
     public function findTournament(string $id): ?array
     {
-        return $this->firestore->find(self::COLLECTION_TOURNAMENTS, $id);
+        return collect($this->listTournaments())->firstWhere('id', $id);
     }
 
     public function createTournament(array $data): array
     {
-        return $this->firestore->create(self::COLLECTION_TOURNAMENTS, $this->withTimestamps($data, true));
+        $created = $this->firestore->create(self::COLLECTION_TOURNAMENTS, $this->withTimestamps($data, true));
+        $this->clearMemo();
+
+        return $created;
     }
 
     public function updateTournament(string $id, array $data): ?array
     {
-        return $this->firestore->update(self::COLLECTION_TOURNAMENTS, $id, $this->withTimestamps($data));
+        $updated = $this->firestore->update(self::COLLECTION_TOURNAMENTS, $id, $this->withTimestamps($data));
+        $this->clearMemo();
+
+        return $updated;
     }
 
     public function deleteTournament(string $id): bool
     {
-        return $this->firestore->delete(self::COLLECTION_TOURNAMENTS, $id);
+        $deleted = $this->firestore->delete(self::COLLECTION_TOURNAMENTS, $id);
+        $this->clearMemo();
+
+        return $deleted;
     }
 
     public function listClubs(bool $withPlayers = false): array
     {
-        $clubs = $this->firestore->all(self::COLLECTION_CLUBS, 'name', 'asc');
+        $cacheKey = $withPlayers ? 'clubs:list:with-players' : 'clubs:list';
 
-        return $this->enrichClubs($clubs, $withPlayers);
+        return $this->remember($cacheKey, function () use ($withPlayers): array {
+            $clubs = $this->firestore->all(self::COLLECTION_CLUBS, 'name', 'asc');
+
+            return $this->enrichClubs($clubs, $withPlayers);
+        });
     }
 
     public function findClub(string $id, bool $withPlayers = true): ?array
     {
-        $club = $this->firestore->find(self::COLLECTION_CLUBS, $id);
+        $cacheKey = $withPlayers ? "clubs:find:with-players:{$id}" : "clubs:find:{$id}";
 
-        if ($club === null) {
-            return null;
-        }
+        return $this->remember($cacheKey, function () use ($id, $withPlayers): ?array {
+            $club = $this->firestore->find(self::COLLECTION_CLUBS, $id);
 
-        return $this->enrichClubs([$club], $withPlayers)[0] ?? $club;
+            if ($club === null) {
+                return null;
+            }
+
+            return $this->enrichClubs([$club], $withPlayers)[0] ?? $club;
+        });
     }
 
     public function findClubByOwnerUserId(string $userId, bool $withPlayers = true): ?array
     {
-        $club = $this->firestore->whereFirst(self::COLLECTION_CLUBS, 'owner_user_id', $userId);
+        $cacheKey = $withPlayers
+            ? "clubs:find:owner:with-players:{$userId}"
+            : "clubs:find:owner:{$userId}";
 
-        if ($club === null) {
-            return null;
-        }
+        return $this->remember($cacheKey, function () use ($userId, $withPlayers): ?array {
+            $club = $this->firestore->whereFirst(self::COLLECTION_CLUBS, 'owner_user_id', $userId);
 
-        return $this->findClub($club['id'], $withPlayers);
+            if ($club === null) {
+                return null;
+            }
+
+            return $this->findClub($club['id'], $withPlayers);
+        });
     }
 
     public function createClub(array $data): array
     {
-        return $this->firestore->create(self::COLLECTION_CLUBS, $this->withTimestamps($data, true));
+        $created = $this->firestore->create(self::COLLECTION_CLUBS, $this->withTimestamps($data, true));
+        $this->clearMemo();
+
+        return $created;
     }
 
     public function updateClub(string $id, array $data): ?array
     {
-        return $this->firestore->update(self::COLLECTION_CLUBS, $id, $this->withTimestamps($data));
+        $updated = $this->firestore->update(self::COLLECTION_CLUBS, $id, $this->withTimestamps($data));
+        $this->clearMemo();
+
+        return $updated;
     }
 
     public function deleteClub(string $id): bool
@@ -144,12 +198,18 @@ class KbcRepository
             $this->deletePlayer($player['id']);
         }
 
-        return $this->firestore->delete(self::COLLECTION_CLUBS, $id);
+        $deleted = $this->firestore->delete(self::COLLECTION_CLUBS, $id);
+        $this->clearMemo();
+
+        return $deleted;
     }
 
     public function listPlayers(): array
     {
-        return $this->firestore->all(self::COLLECTION_PLAYERS, 'name', 'asc');
+        return $this->remember(
+            'players:list',
+            fn (): array => $this->firestore->all(self::COLLECTION_PLAYERS, 'name', 'asc')
+        );
     }
 
     public function listPlayersByClub(string $clubId): array
@@ -163,34 +223,45 @@ class KbcRepository
 
     public function findPlayer(string $id): ?array
     {
-        return $this->firestore->find(self::COLLECTION_PLAYERS, $id);
+        return collect($this->listPlayers())->firstWhere('id', $id);
     }
 
     public function createPlayer(array $data): array
     {
-        return $this->firestore->create(self::COLLECTION_PLAYERS, $this->withTimestamps($data, true));
+        $created = $this->firestore->create(self::COLLECTION_PLAYERS, $this->withTimestamps($data, true));
+        $this->clearMemo();
+
+        return $created;
     }
 
     public function updatePlayer(string $id, array $data): ?array
     {
-        return $this->firestore->update(self::COLLECTION_PLAYERS, $id, $this->withTimestamps($data));
+        $updated = $this->firestore->update(self::COLLECTION_PLAYERS, $id, $this->withTimestamps($data));
+        $this->clearMemo();
+
+        return $updated;
     }
 
     public function deletePlayer(string $id): bool
     {
-        return $this->firestore->delete(self::COLLECTION_PLAYERS, $id);
+        $deleted = $this->firestore->delete(self::COLLECTION_PLAYERS, $id);
+        $this->clearMemo();
+
+        return $deleted;
     }
 
     public function listSchedules(): array
     {
-        return $this->enrichSchedules(
-            $this->firestore->all(self::COLLECTION_SCHEDULES, 'scheduled_at', 'asc')
-        );
+        return $this->remember('schedules:list', function (): array {
+            return $this->enrichSchedules(
+                $this->listSchedulesRaw()
+            );
+        });
     }
 
     public function findSchedule(string $id): ?array
     {
-        $schedule = $this->firestore->find(self::COLLECTION_SCHEDULES, $id);
+        $schedule = collect($this->listSchedulesRaw())->firstWhere('id', $id);
 
         if ($schedule === null) {
             return null;
@@ -201,24 +272,35 @@ class KbcRepository
 
     public function createSchedule(array $data): array
     {
-        return $this->firestore->create(self::COLLECTION_SCHEDULES, $this->withTimestamps($data, true));
+        $created = $this->firestore->create(self::COLLECTION_SCHEDULES, $this->withTimestamps($data, true));
+        $this->clearMemo();
+
+        return $created;
     }
 
     public function updateSchedule(string $id, array $data): ?array
     {
-        return $this->firestore->update(self::COLLECTION_SCHEDULES, $id, $this->withTimestamps($data));
+        $updated = $this->firestore->update(self::COLLECTION_SCHEDULES, $id, $this->withTimestamps($data));
+        $this->clearMemo();
+
+        return $updated;
     }
 
     public function deleteSchedule(string $id): bool
     {
-        return $this->firestore->delete(self::COLLECTION_SCHEDULES, $id);
+        $deleted = $this->firestore->delete(self::COLLECTION_SCHEDULES, $id);
+        $this->clearMemo();
+
+        return $deleted;
     }
 
     public function listMatches(): array
     {
-        return $this->enrichMatches(
-            $this->firestore->all(self::COLLECTION_MATCHES, 'tipoff_at', 'desc')
-        );
+        return $this->remember('matches:list', function (): array {
+            return $this->enrichMatches(
+                $this->firestore->all(self::COLLECTION_MATCHES, 'tipoff_at', 'desc')
+            );
+        });
     }
 
     public function listUpcomingMatches(int $limit = 6): array
@@ -239,7 +321,8 @@ class KbcRepository
 
     public function findMatch(string $id): ?array
     {
-        $match = $this->firestore->find(self::COLLECTION_MATCHES, $id);
+        $match = collect($this->firestore->all(self::COLLECTION_MATCHES, 'tipoff_at', 'desc'))
+            ->firstWhere('id', $id);
 
         if ($match === null) {
             return null;
@@ -250,17 +333,26 @@ class KbcRepository
 
     public function createMatch(array $data): array
     {
-        return $this->firestore->create(self::COLLECTION_MATCHES, $this->withTimestamps($data, true));
+        $created = $this->firestore->create(self::COLLECTION_MATCHES, $this->withTimestamps($data, true));
+        $this->clearMemo();
+
+        return $created;
     }
 
     public function updateMatch(string $id, array $data): ?array
     {
-        return $this->firestore->update(self::COLLECTION_MATCHES, $id, $this->withTimestamps($data));
+        $updated = $this->firestore->update(self::COLLECTION_MATCHES, $id, $this->withTimestamps($data));
+        $this->clearMemo();
+
+        return $updated;
     }
 
     public function deleteMatch(string $id): bool
     {
-        return $this->firestore->delete(self::COLLECTION_MATCHES, $id);
+        $deleted = $this->firestore->delete(self::COLLECTION_MATCHES, $id);
+        $this->clearMemo();
+
+        return $deleted;
     }
 
     public function dashboardStats(): array
@@ -270,8 +362,8 @@ class KbcRepository
 
         return [
             'tournaments' => count($this->listTournaments()),
-            'clubs' => count($this->listClubs()),
-            'schedules' => count($this->listSchedules()),
+            'clubs' => count($this->listClubsBasic()),
+            'schedules' => count($this->listSchedulesRaw()),
             'matches' => count($matches),
             'finished_matches' => $finishedMatches,
         ];
@@ -279,9 +371,9 @@ class KbcRepository
 
     private function enrichMatches(array $matches): array
     {
-        $clubs = collect($this->listClubs())->keyBy('id');
+        $clubs = collect($this->listClubsBasic())->keyBy('id');
         $tournaments = collect($this->listTournaments())->keyBy('id');
-        $schedules = collect($this->listSchedules())->keyBy('id');
+        $schedules = collect($this->listSchedulesRaw())->keyBy('id');
 
         return collect($matches)
             ->map(function (array $match) use ($clubs, $tournaments, $schedules): array {
@@ -294,6 +386,38 @@ class KbcRepository
                 ];
             })
             ->all();
+    }
+
+    private function listClubsBasic(): array
+    {
+        return $this->remember(
+            'clubs:list:basic',
+            fn (): array => $this->firestore->all(self::COLLECTION_CLUBS, 'name', 'asc')
+        );
+    }
+
+    private function listSchedulesRaw(): array
+    {
+        return $this->remember(
+            'schedules:list:raw',
+            fn (): array => $this->firestore->all(self::COLLECTION_SCHEDULES, 'scheduled_at', 'asc')
+        );
+    }
+
+    private function remember(string $key, callable $callback): mixed
+    {
+        if (array_key_exists($key, $this->memo)) {
+            return $this->memo[$key];
+        }
+
+        $this->memo[$key] = $callback();
+
+        return $this->memo[$key];
+    }
+
+    private function clearMemo(): void
+    {
+        $this->memo = [];
     }
 
     private function enrichSchedules(array $schedules): array

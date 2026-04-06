@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use Closure;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
 class FirestoreService
 {
+    private const COLLECTION_CACHE_TTL_SECONDS = 20;
+
     private ?object $client = null;
 
     private ?string $lastError = null;
@@ -32,9 +35,7 @@ class FirestoreService
     public function all(string $collection, ?string $orderBy = null, string $direction = 'asc', ?int $limit = null): array
     {
         return $this->read(function () use ($collection, $orderBy, $direction, $limit): array {
-            $rows = $this->mapNodes(
-                $this->client()->getReference($collection)->getValue()
-            );
+            $rows = $this->mapNodes($this->collectionNodes($collection));
 
             if ($orderBy !== null) {
                 $rows = $this->sortRows($rows, $orderBy, $direction);
@@ -51,13 +52,13 @@ class FirestoreService
     public function find(string $collection, string $id): ?array
     {
         return $this->read(function () use ($collection, $id): ?array {
-            $snapshot = $this->client()->getReference($this->path($collection, $id))->getSnapshot();
+            $nodes = $this->collectionNodes($collection);
 
-            if (! $snapshot->exists()) {
+            if (! is_array($nodes) || ! array_key_exists($id, $nodes)) {
                 return null;
             }
 
-            return ['id' => $id, ...$this->normalizeNode($snapshot->getValue())];
+            return ['id' => $id, ...$this->normalizeNode($nodes[$id])];
         }, null);
     }
 
@@ -102,12 +103,14 @@ class FirestoreService
             if ($id !== null) {
                 $identifier = $id;
                 $this->client()->getReference($this->path($collection, $identifier))->set($data);
+                $this->forgetCollectionCache($collection);
 
                 return $this->find($collection, $identifier) ?? ['id' => $identifier, ...$data];
             }
 
             $reference = $this->client()->getReference($collection)->push($data);
             $identifier = (string) $reference->getKey();
+            $this->forgetCollectionCache($collection);
 
             return $this->find($collection, $identifier) ?? ['id' => $identifier, ...$data];
         });
@@ -124,6 +127,7 @@ class FirestoreService
             }
 
             $reference->update($data);
+            $this->forgetCollectionCache($collection);
 
             return $this->find($collection, $id);
         });
@@ -140,9 +144,31 @@ class FirestoreService
             }
 
             $reference->remove();
+            $this->forgetCollectionCache($collection);
 
             return true;
         });
+    }
+
+    private function collectionNodes(string $collection): ?array
+    {
+        $cacheKey = $this->collectionCacheKey($collection);
+
+        return Cache::remember(
+            $cacheKey,
+            now()->addSeconds(self::COLLECTION_CACHE_TTL_SECONDS),
+            fn (): ?array => $this->client()->getReference($collection)->getValue()
+        );
+    }
+
+    private function forgetCollectionCache(string $collection): void
+    {
+        Cache::forget($this->collectionCacheKey($collection));
+    }
+
+    private function collectionCacheKey(string $collection): string
+    {
+        return 'firebase:collection:'.sha1($collection);
     }
 
     private function client(): object
