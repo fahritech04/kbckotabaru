@@ -14,8 +14,9 @@
     <div class="pointer-events-none fixed inset-0 -z-10 bg-grid-fade opacity-40"></div>
 
     @include('partials.nav.public')
+    <div data-navbar-spacer aria-hidden="true"></div>
 
-    <main class="app-container py-6 sm:py-8">
+    <main class="app-container pb-8 pt-6 sm:pb-10 sm:pt-8">
         @include('partials.alerts')
         @yield('content')
     </main>
