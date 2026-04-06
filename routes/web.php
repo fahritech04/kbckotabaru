@@ -26,7 +26,7 @@ Route::get('/jadwal', [ScheduleController::class, 'index'])->name('schedules.ind
 Route::get('/pertandingan', [MatchController::class, 'index'])->name('matches.index');
 Route::get('/pertandingan/{id}', [MatchController::class, 'show'])->name('matches.show');
 
-Route::prefix('club')
+Route::prefix('daftarklub')
     ->name('club.')
     ->group(function (): void {
         Route::get('/login', [ClubAuthController::class, 'showLogin'])->name('login');
