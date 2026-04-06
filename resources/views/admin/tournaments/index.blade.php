@@ -19,11 +19,14 @@
                 <p class="mt-1 text-xs text-slate-500">{{ $tournament['location'] }}</p>
                 <p class="mt-1 text-xs text-slate-500">{{ $tournament['competition_system_label'] ?? 'Sistem Gugur (Single Elimination)' }}</p>
                 <span class="badge mt-3">{{ $tournament['status'] }}</span>
-                <div class="mt-4 grid grid-cols-3 gap-2">
+                <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <form method="POST" action="{{ route('admin.tournaments.sync', $tournament['id']) }}">
                         @csrf
                         <button type="submit" class="btn-secondary w-full px-3 py-2 text-xs">Sync Sistem</button>
                     </form>
+                    @if (($tournament['competition_system'] ?? '') === \App\Services\TournamentSystemService::SYSTEM_GROUP_KNOCKOUT)
+                        <a href="{{ route('admin.tournaments.draw-group.show', $tournament['id']) }}" class="btn-secondary w-full px-3 py-2 text-center text-xs">Drawing Grup</a>
+                    @endif
                     <a href="{{ route('admin.tournaments.edit', $tournament['id']) }}" class="btn-secondary w-full px-3 py-2 text-xs">Edit</a>
                     <form method="POST" action="{{ route('admin.tournaments.destroy', $tournament['id']) }}" onsubmit="return confirm('Hapus turnamen ini?')">
                         @csrf
@@ -63,6 +66,9 @@
                                     @csrf
                                     <button type="submit" class="btn-secondary px-3 py-1.5 text-xs">Sync Sistem</button>
                                 </form>
+                                @if (($tournament['competition_system'] ?? '') === \App\Services\TournamentSystemService::SYSTEM_GROUP_KNOCKOUT)
+                                    <a href="{{ route('admin.tournaments.draw-group.show', $tournament['id']) }}" class="btn-secondary px-3 py-1.5 text-xs">Drawing Grup</a>
+                                @endif
                                 <a href="{{ route('admin.tournaments.edit', $tournament['id']) }}" class="btn-secondary px-3 py-1.5 text-xs">Edit</a>
                                 <form method="POST" action="{{ route('admin.tournaments.destroy', $tournament['id']) }}" onsubmit="return confirm('Hapus turnamen ini?')">
                                     @csrf

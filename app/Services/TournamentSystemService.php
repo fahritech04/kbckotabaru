@@ -288,17 +288,29 @@ class TournamentSystemService
         return $normalized;
     }
 
-    public function generatePlan(array $tournament, array $clubs): array
+    public function generatePlan(array $tournament, array $clubs, array $options = []): array
     {
         $systemCode = $this->normalizeSystemCode($tournament['competition_system'] ?? null);
         $settings = $this->normalizeSettings($systemCode, (array) ($tournament['competition_settings'] ?? []), count($clubs));
         $clubIds = $this->seedClubIds($clubs);
+        $groupDrawResults = [];
+        $forceGroupRedraw = (bool) ($options['force_group_redraw'] ?? false);
+
+        if ($systemCode === self::SYSTEM_GROUP_KNOCKOUT) {
+            $groupCount = min(max(2, (int) ($settings['group_count'] ?? 2)), max(1, count($clubIds)));
+            $groupDrawResults = $this->resolveGroupDrawResults(
+                $clubIds,
+                $groupCount,
+                (array) ($tournament['group_draw_results'] ?? []),
+                $forceGroupRedraw
+            );
+        }
 
         $rounds = match ($systemCode) {
             self::SYSTEM_DOUBLE_ELIMINATION => $this->buildDoubleEliminationRounds($clubIds),
             self::SYSTEM_SINGLE_ROUND_ROBIN => $this->buildRoundRobinRounds($clubIds, false, 'Liga'),
             self::SYSTEM_DOUBLE_ROUND_ROBIN => $this->buildRoundRobinRounds($clubIds, true, 'Liga'),
-            self::SYSTEM_GROUP_KNOCKOUT => $this->buildGroupKnockoutRounds($clubIds, $settings),
+            self::SYSTEM_GROUP_KNOCKOUT => $this->buildGroupKnockoutRounds($groupDrawResults, $settings),
             self::SYSTEM_SWISS => $this->buildSwissRounds($clubIds, $settings),
             self::SYSTEM_BEST_OF_SERIES => $this->buildBestOfSeriesRounds($clubIds, $settings),
             self::SYSTEM_PLAY_IN => $this->buildPlayInRounds($clubIds, $settings),
@@ -310,7 +322,7 @@ class TournamentSystemService
             default => $this->buildSingleEliminationRounds($clubIds),
         };
 
-        return $this->assemblePlan($rounds, $tournament, $systemCode, $settings);
+        return $this->assemblePlan($rounds, $tournament, $systemCode, $settings, $groupDrawResults);
     }
 
     public function calculateStandings(array $tournament, array $clubs, array $matches): array
@@ -453,8 +465,13 @@ class TournamentSystemService
         return $finalRows;
     }
 
-    private function assemblePlan(array $rounds, array $tournament, string $systemCode, array $settings): array
-    {
+    private function assemblePlan(
+        array $rounds,
+        array $tournament,
+        string $systemCode,
+        array $settings,
+        array $groupDrawResults = []
+    ): array {
         $startDate = ! empty($tournament['start_date'])
             ? Carbon::parse($tournament['start_date'])->startOfDay()->setHour(9)
             : now()->startOfDay()->setHour(9);
@@ -520,6 +537,7 @@ class TournamentSystemService
             'system_label' => $systemLabel,
             'supports_standings' => $this->supportsStandings($systemCode),
             'settings' => $settings,
+            'group_draw_results' => $groupDrawResults,
             'rounds' => $rounds,
             'schedules' => $schedules,
             'matches' => $matches,
@@ -661,25 +679,14 @@ class TournamentSystemService
         return $rounds;
     }
 
-    private function buildGroupKnockoutRounds(array $clubIds, array $settings): array
+    private function buildGroupKnockoutRounds(array $groupDrawResults, array $settings): array
     {
-        if ($clubIds === []) {
+        if ($groupDrawResults === []) {
             return [];
         }
 
-        $groupCount = min(max(2, (int) ($settings['group_count'] ?? 2)), count($clubIds));
-        $groups = [];
-        for ($i = 0; $i < $groupCount; $i++) {
-            $groups['Group '.chr(65 + $i)] = [];
-        }
-
-        foreach ($clubIds as $index => $clubId) {
-            $groupName = array_keys($groups)[$index % $groupCount];
-            $groups[$groupName][] = $clubId;
-        }
-
         $rounds = [];
-        foreach ($groups as $groupName => $members) {
+        foreach ($groupDrawResults as $groupName => $members) {
             $groupPairings = $this->roundRobinPairings($members);
             foreach ($groupPairings as $index => $matches) {
                 $rounds[] = [
@@ -699,7 +706,7 @@ class TournamentSystemService
             }
         }
 
-        $qualifiers = max(2, (int) ($settings['qualifiers_per_group'] ?? 2)) * $groupCount;
+        $qualifiers = max(2, (int) ($settings['qualifiers_per_group'] ?? 2)) * count($groupDrawResults);
         if ($qualifiers >= 2) {
             $knockout = $this->buildSingleEliminationRounds(array_fill(0, $qualifiers, null));
             foreach ($knockout as $round) {
@@ -713,6 +720,116 @@ class TournamentSystemService
         }
 
         return $rounds;
+    }
+
+    private function resolveGroupDrawResults(
+        array $clubIds,
+        int $groupCount,
+        array $currentDrawResults,
+        bool $forceRedraw
+    ): array {
+        if ($clubIds === [] || $groupCount <= 0) {
+            return [];
+        }
+
+        $normalizedCurrent = $this->normalizeGroupDrawResults($currentDrawResults);
+
+        if (! $forceRedraw && $this->canReuseGroupDraw($normalizedCurrent, $clubIds, $groupCount)) {
+            $ordered = [];
+            foreach ($this->buildGroupNames($groupCount) as $groupName) {
+                $ordered[$groupName] = $normalizedCurrent[$groupName] ?? [];
+            }
+
+            return $ordered;
+        }
+
+        $groupNames = $this->buildGroupNames($groupCount);
+        $grouped = [];
+        foreach ($groupNames as $name) {
+            $grouped[$name] = [];
+        }
+
+        $shuffledClubIds = array_values($clubIds);
+        shuffle($shuffledClubIds);
+
+        foreach ($shuffledClubIds as $index => $clubId) {
+            $groupName = $groupNames[$index % count($groupNames)];
+            $grouped[$groupName][] = $clubId;
+        }
+
+        return $grouped;
+    }
+
+    private function normalizeGroupDrawResults(array $drawResults): array
+    {
+        $normalized = [];
+
+        foreach ($drawResults as $groupKey => $members) {
+            $groupName = trim((string) $groupKey);
+
+            if ($groupName === '' || ! is_array($members)) {
+                continue;
+            }
+
+            $normalized[$groupName] = array_values(
+                array_filter(array_map(fn ($clubId): string => (string) $clubId, $members), fn (string $clubId): bool => $clubId !== '')
+            );
+        }
+
+        return $normalized;
+    }
+
+    private function canReuseGroupDraw(array $groupDrawResults, array $clubIds, int $groupCount): bool
+    {
+        if (count($groupDrawResults) !== $groupCount) {
+            return false;
+        }
+
+        $expectedGroups = $this->buildGroupNames($groupCount);
+        foreach ($expectedGroups as $groupName) {
+            if (! array_key_exists($groupName, $groupDrawResults)) {
+                return false;
+            }
+        }
+
+        $orderedGroups = [];
+        foreach ($expectedGroups as $groupName) {
+            $orderedGroups[$groupName] = $groupDrawResults[$groupName];
+        }
+
+        $drawnClubIds = collect($orderedGroups)
+            ->flatten()
+            ->filter()
+            ->map(fn ($clubId): string => (string) $clubId)
+            ->values()
+            ->all();
+
+        sort($drawnClubIds);
+        $expectedClubIds = array_values(array_map(fn ($clubId): string => (string) $clubId, $clubIds));
+        sort($expectedClubIds);
+
+        if ($drawnClubIds !== $expectedClubIds) {
+            return false;
+        }
+
+        foreach ($orderedGroups as $members) {
+            if (count($members) === 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function buildGroupNames(int $groupCount): array
+    {
+        $names = [];
+
+        for ($i = 0; $i < $groupCount; $i++) {
+            $names[] = 'Group '.chr(65 + $i);
+        }
+
+        return $names;
     }
 
     private function buildSwissRounds(array $clubIds, array $settings): array

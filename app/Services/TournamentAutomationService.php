@@ -11,7 +11,7 @@ class TournamentAutomationService
         private readonly TournamentSystemService $systemService
     ) {}
 
-    public function syncTournament(string $tournamentId): array
+    public function syncTournament(string $tournamentId, array $options = []): array
     {
         $tournament = $this->repository->findTournament($tournamentId);
 
@@ -19,8 +19,15 @@ class TournamentAutomationService
             throw new RuntimeException('Turnamen tidak ditemukan.');
         }
 
+        $forceGroupRedraw = (bool) ($options['force_group_redraw'] ?? false);
+        if (array_key_exists('group_draw_results', $options) && is_array($options['group_draw_results'])) {
+            $tournament['group_draw_results'] = $options['group_draw_results'];
+        }
+
         $clubs = $this->repository->listClubsByTournament($tournamentId);
-        $plan = $this->systemService->generatePlan($tournament, $clubs);
+        $plan = $this->systemService->generatePlan($tournament, $clubs, [
+            'force_group_redraw' => $forceGroupRedraw,
+        ]);
 
         $existingMatches = $this->repository->listMatchesByTournament($tournamentId);
         $existingSchedules = $this->repository->listSchedulesByTournament($tournamentId);
@@ -100,11 +107,13 @@ class TournamentAutomationService
             'competition_system' => $plan['system_code'],
             'competition_system_label' => $plan['system_label'],
             'competition_settings' => $plan['settings'],
+            'group_draw_results' => $plan['group_draw_results'] ?? [],
             'competition_rounds' => collect($plan['rounds'])->map(function (array $round): array {
                 return [
                     'name' => $round['name'] ?? '-',
                     'stage' => $round['stage'] ?? 'main',
                     'bracket' => $round['bracket'] ?? 'main',
+                    'group' => $round['group'] ?? null,
                     'matches_count' => count($round['matches'] ?? []),
                     'affects_standings' => (bool) ($round['affects_standings'] ?? false),
                 ];
@@ -122,7 +131,7 @@ class TournamentAutomationService
             'deleted_schedules' => $deletedSchedules,
             'created_matches' => $createdMatches,
             'created_schedules' => $createdSchedules,
+            'group_draw_results' => $plan['group_draw_results'] ?? [],
         ];
     }
 }
-

@@ -49,6 +49,7 @@ class TournamentController extends Controller
         $tournament['hero_image_url'] = $this->imageUploadService->resolveUrl($tournament['hero_image'] ?? null);
 
         $clubs = $this->repository->listClubsByTournament($id);
+        $groupDrawResults = $this->buildGroupDrawResults($tournament, $clubs);
         $matches = collect($this->repository->listMatches())
             ->filter(fn (array $match): bool => ($match['tournament_id'] ?? null) === $id)
             ->values()
@@ -62,7 +63,45 @@ class TournamentController extends Controller
             'allMatches' => $matches,
             'clubs' => $clubs,
             'standings' => $standings,
+            'groupDrawResults' => $groupDrawResults,
         ]);
+    }
+
+    private function buildGroupDrawResults(array $tournament, array $clubs): array
+    {
+        $systemCode = $this->systemService->normalizeSystemCode($tournament['competition_system'] ?? null);
+        if ($systemCode !== TournamentSystemService::SYSTEM_GROUP_KNOCKOUT) {
+            return [];
+        }
+
+        $clubsById = collect($clubs)->keyBy('id');
+        $raw = (array) ($tournament['group_draw_results'] ?? []);
+        $results = [];
+
+        foreach ($raw as $groupName => $clubIds) {
+            if (! is_array($clubIds)) {
+                continue;
+            }
+
+            $members = collect($clubIds)
+                ->map(fn ($clubId): ?array => $clubsById->get((string) $clubId))
+                ->filter()
+                ->map(function (array $club): array {
+                    return [
+                        'id' => $club['id'],
+                        'name' => $club['name'] ?? 'Klub',
+                    ];
+                })
+                ->values()
+                ->all();
+
+            $results[] = [
+                'group' => (string) $groupName,
+                'members' => $members,
+            ];
+        }
+
+        return $results;
     }
 }
 

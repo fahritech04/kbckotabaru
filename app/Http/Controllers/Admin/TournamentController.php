@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use RuntimeException;
 
 class TournamentController extends Controller
@@ -126,6 +127,113 @@ class TournamentController extends Controller
         );
     }
 
+    public function showDrawGroup(string $id): View|RedirectResponse
+    {
+        $tournament = $this->repository->findTournament($id);
+        abort_if($tournament === null, 404);
+
+        $systemCode = $this->systemService->normalizeSystemCode($tournament['competition_system'] ?? null);
+        if ($systemCode !== TournamentSystemService::SYSTEM_GROUP_KNOCKOUT) {
+            return back()->with('error', 'Drawing grup hanya tersedia untuk sistem Group + Knockout.');
+        }
+
+        $clubs = collect($this->repository->listClubsByTournament($id))
+            ->map(fn (array $club): array => [
+                'id' => (string) ($club['id'] ?? ''),
+                'name' => (string) ($club['name'] ?? 'Klub'),
+            ])
+            ->filter(fn (array $club): bool => $club['id'] !== '')
+            ->values()
+            ->all();
+
+        if (count($clubs) < 2) {
+            return redirect()->route('admin.tournaments.index')
+                ->with('error', 'Drawing grup membutuhkan minimal 2 klub peserta.');
+        }
+
+        $normalizedSettings = $this->systemService->normalizeSettings(
+            $systemCode,
+            (array) ($tournament['competition_settings'] ?? []),
+            count($clubs)
+        );
+        $groupCount = min(max(2, (int) ($normalizedSettings['group_count'] ?? 2)), count($clubs));
+
+        return view('admin.tournaments.draw-group', [
+            'tournament' => $tournament,
+            'clubs' => $clubs,
+            'groupNames' => $this->buildGroupNames($groupCount),
+            'groupCount' => $groupCount,
+        ]);
+    }
+
+    public function applyDrawGroup(Request $request, string $id): RedirectResponse
+    {
+        $tournament = $this->repository->findTournament($id);
+        abort_if($tournament === null, 404);
+
+        $systemCode = $this->systemService->normalizeSystemCode($tournament['competition_system'] ?? null);
+        if ($systemCode !== TournamentSystemService::SYSTEM_GROUP_KNOCKOUT) {
+            return back()->with('error', 'Drawing grup hanya tersedia untuk sistem Group + Knockout.');
+        }
+
+        $payload = $request->validate([
+            'group_draw_results' => ['required', 'string'],
+        ]);
+
+        $clubs = collect($this->repository->listClubsByTournament($id))
+            ->map(fn (array $club): array => [
+                'id' => (string) ($club['id'] ?? ''),
+                'name' => (string) ($club['name'] ?? 'Klub'),
+            ])
+            ->filter(fn (array $club): bool => $club['id'] !== '')
+            ->values()
+            ->all();
+
+        if (count($clubs) < 2) {
+            return redirect()->route('admin.tournaments.index')
+                ->with('error', 'Drawing grup membutuhkan minimal 2 klub peserta.');
+        }
+
+        $normalizedSettings = $this->systemService->normalizeSettings(
+            $systemCode,
+            (array) ($tournament['competition_settings'] ?? []),
+            count($clubs)
+        );
+        $groupCount = min(max(2, (int) ($normalizedSettings['group_count'] ?? 2)), count($clubs));
+        $groupNames = $this->buildGroupNames($groupCount);
+
+        $decoded = json_decode($payload['group_draw_results'], true);
+        if (! is_array($decoded)) {
+            return back()->withInput()->with('error', 'Format hasil drawing tidak valid.');
+        }
+
+        $normalizedDrawResults = $this->normalizeSubmittedGroupDraw($decoded, $groupNames);
+        if ($normalizedDrawResults === null) {
+            return back()->withInput()->with('error', 'Format hasil drawing tidak valid.');
+        }
+
+        $clubIds = array_values(array_map(fn (array $club): string => $club['id'], $clubs));
+        if (! $this->isValidGroupDrawCoverage($normalizedDrawResults, $clubIds)) {
+            return back()->withInput()->with('error', 'Hasil drawing tidak valid. Pastikan setiap klub masuk tepat satu grup.');
+        }
+
+        try {
+            $result = $this->automationService->syncTournament($id, [
+                'group_draw_results' => $normalizedDrawResults,
+                'force_group_redraw' => false,
+            ]);
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        $groupsCount = count((array) ($result['group_draw_results'] ?? []));
+
+        return redirect()->route('admin.tournaments.index')->with(
+            'success',
+            "Drawing grup berhasil ditetapkan ({$groupsCount} grup) dan jadwal pertandingan disinkronkan."
+        );
+    }
+
     public function destroy(string $id)
     {
         try {
@@ -210,5 +318,61 @@ class TournamentController extends Controller
         if ($messages !== []) {
             throw ValidationException::withMessages($messages);
         }
+    }
+
+    private function buildGroupNames(int $groupCount): array
+    {
+        $names = [];
+        for ($i = 0; $i < $groupCount; $i++) {
+            $names[] = 'Group '.chr(65 + $i);
+        }
+
+        return $names;
+    }
+
+    private function normalizeSubmittedGroupDraw(array $submitted, array $groupNames): ?array
+    {
+        $normalized = [];
+
+        foreach ($groupNames as $groupName) {
+            if (! array_key_exists($groupName, $submitted) || ! is_array($submitted[$groupName])) {
+                return null;
+            }
+
+            $members = array_values(array_filter(array_map(
+                fn ($clubId): string => trim((string) $clubId),
+                $submitted[$groupName]
+            ), fn (string $clubId): bool => $clubId !== ''));
+
+            if ($members === []) {
+                return null;
+            }
+
+            $normalized[$groupName] = $members;
+        }
+
+        if (count($submitted) !== count($groupNames)) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    private function isValidGroupDrawCoverage(array $groupDrawResults, array $clubIds): bool
+    {
+        $assigned = collect($groupDrawResults)
+            ->flatten()
+            ->map(fn ($clubId): string => (string) $clubId)
+            ->values()
+            ->all();
+
+        if (count($assigned) !== count(array_unique($assigned))) {
+            return false;
+        }
+
+        sort($assigned);
+        sort($clubIds);
+
+        return $assigned === $clubIds;
     }
 }
