@@ -12,7 +12,7 @@
     ])
 
     <section class="mt-6 surface-card p-6">
-        <form action="{{ route('admin.tournaments.update', $tournament['id']) }}" method="POST" class="space-y-1">
+        <form action="{{ route('admin.tournaments.update', $tournament['id']) }}" method="POST" enctype="multipart/form-data" class="space-y-1">
             @csrf
             @method('PUT')
             @include('admin.tournaments.form-fields', ['tournament' => $tournament])

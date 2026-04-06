@@ -65,6 +65,7 @@ Route::prefix('admin')
             Route::post('/turnamen', [AdminTournamentController::class, 'store'])->name('tournaments.store');
             Route::get('/turnamen/{id}/edit', [AdminTournamentController::class, 'edit'])->name('tournaments.edit');
             Route::put('/turnamen/{id}', [AdminTournamentController::class, 'update'])->name('tournaments.update');
+            Route::post('/turnamen/{id}/sync', [AdminTournamentController::class, 'sync'])->name('tournaments.sync');
             Route::delete('/turnamen/{id}', [AdminTournamentController::class, 'destroy'])->name('tournaments.destroy');
 
             Route::get('/klub', [AdminClubController::class, 'index'])->name('clubs.index');

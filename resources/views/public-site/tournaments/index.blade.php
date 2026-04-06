@@ -9,12 +9,23 @@
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         @forelse ($tournaments as $tournament)
             <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                @if (! empty($tournament['hero_image_url']))
+                    <div class="mb-4 overflow-hidden rounded-xl border border-slate-100">
+                        <img src="{{ $tournament['hero_image_url'] }}" alt="{{ $tournament['name'] }}" class="aspect-[16/9] w-full object-cover" />
+                    </div>
+                @endif
                 <div class="text-xs font-semibold uppercase tracking-wide text-orange-600">{{ $tournament['season'] }}</div>
                 <h2 class="mt-2 text-xl font-black text-slate-900">{{ $tournament['name'] }}</h2>
                 <p class="mt-2 text-sm text-slate-500">{{ $tournament['location'] }}</p>
+                <p class="mt-1 text-xs font-semibold text-slate-500">{{ $tournament['competition_system_label'] ?? 'Sistem Gugur (Single Elimination)' }}</p>
                 <p class="mt-3 line-clamp-2 text-sm text-slate-600">{{ $tournament['description'] ?? 'Deskripsi turnamen belum tersedia.' }}</p>
                 <div class="mt-4 flex items-center justify-between">
-                    <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase text-slate-600">{{ $tournament['status'] }}</span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase text-slate-600">{{ $tournament['status'] }}</span>
+                        @if (($tournament['standings_enabled'] ?? false) === true)
+                            <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase text-emerald-700">Klasemen Aktif</span>
+                        @endif
+                    </div>
                     <a href="{{ route('tournaments.show', $tournament['id']) }}" class="text-sm font-semibold text-orange-600 hover:text-orange-700">Detail</a>
                 </div>
             </article>

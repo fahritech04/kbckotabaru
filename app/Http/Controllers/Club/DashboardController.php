@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ImageUploadService;
 use App\Services\KbcRepository;
 use App\Services\SessionAuthService;
+use App\Services\TournamentAutomationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -17,7 +18,8 @@ class DashboardController extends Controller
 {
     public function __construct(
         private readonly KbcRepository $repository,
-        private readonly ImageUploadService $imageUploadService
+        private readonly ImageUploadService $imageUploadService,
+        private readonly TournamentAutomationService $tournamentAutomationService
     ) {}
 
     public function __invoke()
@@ -31,7 +33,7 @@ class DashboardController extends Controller
         return view('club.dashboard', [
             'club' => $club,
             'players' => $this->repository->listPlayersByClub($club['id']),
-            'tournaments' => $this->repository->listTournaments(),
+            'tournaments' => $this->listSelectableTournaments(),
             'clubLogoUrl' => $this->imageUploadService->resolveUrl($club['logo_url'] ?? null),
             'coachKtpUrl' => $this->imageUploadService->resolveUrl($club['coach_ktp_url'] ?? null),
             'firebaseReady' => $this->repository->isFirebaseReady(),
@@ -49,7 +51,7 @@ class DashboardController extends Controller
         abort_if($authUser === null, 403);
 
         return view('club.onboarding', [
-            'tournaments' => $this->repository->listTournaments(),
+            'tournaments' => $this->listSelectableTournaments(),
             'authUser' => $authUser,
         ]);
     }
@@ -79,8 +81,8 @@ class DashboardController extends Controller
             'players.*.ktp_image' => ['nullable', 'image', 'max:4096'],
         ]);
 
-        if ($this->repository->findTournament($payload['tournament_id']) === null) {
-            return back()->withInput()->with('error', 'Turnamen yang dipilih tidak ditemukan.');
+        if ($this->findSelectableTournament($payload['tournament_id']) === null) {
+            return back()->withInput()->with('error', 'Turnamen yang dipilih tidak tersedia untuk pendaftaran. Pilih turnamen dengan status upcoming atau ongoing.');
         }
 
         $this->assertClubUniqueness(
@@ -158,6 +160,8 @@ class DashboardController extends Controller
 
                 $createdPlayerIds[] = $createdPlayer['id'];
             }
+
+            $this->tournamentAutomationService->syncTournament($payload['tournament_id']);
         } catch (RuntimeException $exception) {
             foreach ($createdPlayerIds as $playerId) {
                 $this->repository->deletePlayer($playerId);
@@ -197,8 +201,8 @@ class DashboardController extends Controller
             'coach_ktp' => ['nullable', 'image', 'max:4096'],
         ]);
 
-        if ($this->repository->findTournament($payload['tournament_id']) === null) {
-            return back()->withInput()->with('error', 'Turnamen yang dipilih tidak ditemukan.');
+        if ($this->findSelectableTournament($payload['tournament_id']) === null) {
+            return back()->withInput()->with('error', 'Turnamen yang dipilih tidak tersedia untuk pendaftaran. Pilih turnamen dengan status upcoming atau ongoing.');
         }
 
         $this->assertClubUniqueness(
@@ -220,6 +224,8 @@ class DashboardController extends Controller
         );
 
         try {
+            $previousTournamentId = (string) ($club['tournament_id'] ?? '');
+
             $this->repository->updateClub($club['id'], [
                 'name' => $payload['name'],
                 'coach' => $payload['coach'],
@@ -231,6 +237,11 @@ class DashboardController extends Controller
                 'logo_url' => $payload['logo_url'] ?? ($club['logo_url'] ?? null),
                 'coach_ktp_url' => $payload['coach_ktp_url'] ?? ($club['coach_ktp_url'] ?? null),
             ]);
+
+            $this->tournamentAutomationService->syncTournament($payload['tournament_id']);
+            if ($previousTournamentId !== '' && $previousTournamentId !== $payload['tournament_id']) {
+                $this->tournamentAutomationService->syncTournament($previousTournamentId);
+            }
 
             $ownerId = $club['owner_user_id'] ?? null;
             if ($ownerId !== null) {
@@ -405,5 +416,23 @@ class DashboardController extends Controller
         }
 
         return $club;
+    }
+
+    private function listSelectableTournaments(): array
+    {
+        return collect($this->repository->listTournaments())
+            ->filter(function (array $tournament): bool {
+                $status = strtolower(trim((string) ($tournament['status'] ?? '')));
+
+                return in_array($status, ['upcoming', 'ongoing'], true);
+            })
+            ->values()
+            ->all();
+    }
+
+    private function findSelectableTournament(string $tournamentId): ?array
+    {
+        return collect($this->listSelectableTournaments())
+            ->firstWhere('id', $tournamentId);
     }
 }

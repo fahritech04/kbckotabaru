@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Services\ImageUploadService;
 use App\Services\KbcRepository;
+use App\Services\TournamentAutomationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +16,8 @@ class ClubController extends Controller
 {
     public function __construct(
         private readonly KbcRepository $repository,
-        private readonly ImageUploadService $imageUploadService
+        private readonly ImageUploadService $imageUploadService,
+        private readonly TournamentAutomationService $tournamentAutomationService
     ) {}
 
     public function index()
@@ -104,6 +106,10 @@ class ClubController extends Controller
                 ]);
 
                 $createdPlayerIds[] = $createdPlayer['id'];
+            }
+
+            if (! empty($payload['tournament_id'])) {
+                $this->tournamentAutomationService->syncTournament($payload['tournament_id']);
             }
         } catch (RuntimeException $exception) {
             foreach ($createdPlayerIds as $playerId) {
@@ -234,6 +240,16 @@ class ClubController extends Controller
                         'position' => null,
                     ]);
                 }
+            }
+
+            $previousTournamentId = (string) ($club['tournament_id'] ?? '');
+            $currentTournamentId = (string) ($payload['tournament_id'] ?? $previousTournamentId);
+
+            if ($previousTournamentId !== '') {
+                $this->tournamentAutomationService->syncTournament($previousTournamentId);
+            }
+            if ($currentTournamentId !== '' && $currentTournamentId !== $previousTournamentId) {
+                $this->tournamentAutomationService->syncTournament($currentTournamentId);
             }
         } catch (RuntimeException $exception) {
             return back()->withInput()->with('error', $exception->getMessage());

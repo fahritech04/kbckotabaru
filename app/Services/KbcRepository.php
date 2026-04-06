@@ -144,6 +144,14 @@ class KbcRepository
         });
     }
 
+    public function listClubsByTournament(string $tournamentId, bool $withPlayers = false): array
+    {
+        return collect($this->listClubs($withPlayers))
+            ->where('tournament_id', $tournamentId)
+            ->values()
+            ->all();
+    }
+
     public function findClub(string $id, bool $withPlayers = true): ?array
     {
         $cacheKey = $withPlayers ? "clubs:find:with-players:{$id}" : "clubs:find:{$id}";
@@ -363,6 +371,14 @@ class KbcRepository
         });
     }
 
+    public function listSchedulesByTournament(string $tournamentId): array
+    {
+        return collect($this->listSchedules())
+            ->where('tournament_id', $tournamentId)
+            ->values()
+            ->all();
+    }
+
     public function findSchedule(string $id): ?array
     {
         $schedule = collect($this->listSchedulesRaw())->firstWhere('id', $id);
@@ -405,6 +421,14 @@ class KbcRepository
                 $this->firestore->all(self::COLLECTION_MATCHES, 'tipoff_at', 'desc')
             );
         });
+    }
+
+    public function listMatchesByTournament(string $tournamentId): array
+    {
+        return collect($this->listMatches())
+            ->where('tournament_id', $tournamentId)
+            ->values()
+            ->all();
     }
 
     public function listUpcomingMatches(int $limit = 6): array
