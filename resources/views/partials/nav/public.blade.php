@@ -14,7 +14,6 @@
     <div class="app-container py-3 sm:py-4">
         <div class="relative flex items-center gap-3">
             <a href="{{ route('home') }}" class="mr-auto flex items-center gap-3">
-                <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white">KBC</div>
                 <div>
                     <div class="text-[10px] font-semibold tracking-[0.22em] text-orange-600 sm:text-xs">KOTABARU BASKETBALL</div>
                     <div class="text-sm font-black text-slate-900 sm:text-base">Competition Center</div>

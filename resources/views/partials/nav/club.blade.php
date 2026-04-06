@@ -9,8 +9,7 @@
 <header class="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
     <div class="app-container py-4">
         <div class="relative flex items-center gap-3">
-            <a href="{{ route('club.dashboard') }}" class="mr-auto flex items-center gap-3">
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white">KBC</div>
+            <a href="{{ route('home') }}" class="mr-auto flex items-center gap-3">
                 <div>
                     <div class="text-xs font-semibold uppercase tracking-[0.2em] text-orange-600">Portal Klub</div>
                     <div class="text-sm font-black text-slate-900">Kotabaru Basketball</div>
