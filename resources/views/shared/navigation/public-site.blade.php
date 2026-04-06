@@ -5,6 +5,7 @@
         ['label' => 'Jadwal', 'route' => 'schedules.index', 'active' => 'schedules.*'],
         ['label' => 'Klub', 'route' => 'clubs.index', 'active' => 'clubs.*'],
         ['label' => 'Turnamen', 'route' => 'tournaments.index', 'active' => 'tournaments.*'],
+        ['label' => 'Instagram', 'route' => 'instagram.index', 'active' => 'instagram.*'],
     ];
 @endphp
 

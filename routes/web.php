@@ -11,6 +11,7 @@ use App\Http\Controllers\Club\DashboardController as ClubDashboardController;
 use App\Http\Controllers\Club\PlayerController as ClubPlayerController;
 use App\Http\Controllers\Frontend\ClubController;
 use App\Http\Controllers\Frontend\HomeController;
+use App\Http\Controllers\Frontend\InstagramController;
 use App\Http\Controllers\Frontend\MatchController;
 use App\Http\Controllers\Frontend\ScheduleController;
 use App\Http\Controllers\Frontend\TournamentController;
@@ -25,6 +26,8 @@ Route::get('/klub/{id}', [ClubController::class, 'show'])->name('clubs.show');
 Route::get('/jadwal', [ScheduleController::class, 'index'])->name('schedules.index');
 Route::get('/pertandingan', [MatchController::class, 'index'])->name('matches.index');
 Route::get('/pertandingan/{id}', [MatchController::class, 'show'])->name('matches.show');
+Route::get('/instagram', InstagramController::class)->name('instagram.index');
+Route::get('/instagram/media/{token}', [InstagramController::class, 'media'])->name('instagram.media');
 
 Route::prefix('daftarklub')
     ->name('club.')
