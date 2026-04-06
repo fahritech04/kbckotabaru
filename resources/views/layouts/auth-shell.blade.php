@@ -15,7 +15,6 @@
 
     <main class="app-container py-8 sm:py-12">
         <a href="{{ route('home') }}" class="mx-auto flex w-fit items-center gap-3 rounded-2xl border border-white/80 bg-white/75 px-4 py-2 shadow-sm backdrop-blur">
-            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white">KBC</div>
             <div>
                 <div class="text-[10px] font-semibold tracking-[0.22em] text-orange-600 sm:text-xs">KOTABARU BASKETBALL</div>
                 <div class="text-sm font-black text-slate-900 sm:text-base">Competition Center</div>

@@ -1,24 +1,11 @@
 ﻿@extends('layouts.public-site', ['title' => 'Klub - KBC Kotabaru'])
 
 @section('content')
-    @php
-        $authUser = session(\App\Services\SessionAuthService::SESSION_KEY_CLUB);
-        $isClubAuthenticated = ($authUser['role'] ?? null) === 'club';
-    @endphp
-
     <section class="mb-6 rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
             <div>
                 <h1 class="text-2xl font-black text-slate-900 sm:text-3xl">Daftar Klub</h1>
                 <p class="mt-2 text-sm text-slate-500">Profil klub peserta kompetisi basket Kotabaru.</p>
-            </div>
-            <div class="flex flex-wrap gap-2">
-                @if ($isClubAuthenticated)
-                    <a href="{{ route('club.dashboard') }}" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">Dashboard Klub</a>
-                @else
-                    <a href="{{ route('club.login') }}" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">Login Klub</a>
-                    <a href="{{ route('club.register') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Pendaftaran Klub</a>
-                @endif
             </div>
         </div>
     </section>
