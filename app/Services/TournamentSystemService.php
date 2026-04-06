@@ -276,7 +276,9 @@ class TournamentSystemService
             }
             if (array_key_exists('qualifiers_per_group', $normalized)) {
                 $groups = max(1, (int) ($normalized['group_count'] ?? 2));
-                $normalized['qualifiers_per_group'] = min($normalized['qualifiers_per_group'], max(1, (int) ceil($clubCount / $groups)));
+                $capacities = $this->calculateGroupCapacities($clubCount, $groups);
+                $minGroupSize = max(1, (int) min($capacities));
+                $normalized['qualifiers_per_group'] = min($normalized['qualifiers_per_group'], $minGroupSize);
             }
             if (array_key_exists('play_in_slots', $normalized)) {
                 $normalized['play_in_slots'] = min($normalized['play_in_slots'], $clubCount);
@@ -354,6 +356,12 @@ class TournamentSystemService
 
         if ($systemCode === self::SYSTEM_GROUP_KNOCKOUT) {
             $groupDrawResults = $this->normalizeGroupDrawResults((array) ($tournament['group_draw_results'] ?? []));
+            $normalizedSettings = $this->normalizeSettings(
+                $systemCode,
+                (array) ($tournament['competition_settings'] ?? []),
+                count($clubs)
+            );
+            $requestedQualifiers = max(1, (int) ($normalizedSettings['qualifiers_per_group'] ?? 1));
 
             if ($groupDrawResults === []) {
                 $groupDrawResults = collect($matches)
@@ -390,10 +398,13 @@ class TournamentSystemService
                         ->filter(fn (array $match): bool => trim((string) ($match['group'] ?? '')) === (string) $groupName)
                         ->values()
                         ->all();
+                    $effectiveQualifiers = min($requestedQualifiers, $groupClubIndex->count());
+                    $rows = $this->calculateStandingRows($groupClubIndex, $groupMatches, $systemCode);
 
                     $tables[] = [
                         'name' => $groupName,
-                        'rows' => $this->calculateStandingRows($groupClubIndex, $groupMatches, $systemCode),
+                        'qualifiers_per_group' => $effectiveQualifiers,
+                        'rows' => $this->markQualifiedRows($rows, $effectiveQualifiers),
                     ];
                 }
 
@@ -401,6 +412,7 @@ class TournamentSystemService
                     return [
                         'enabled' => true,
                         'title' => 'Klasemen Fase Grup',
+                        'qualifiers_per_group' => $requestedQualifiers,
                         'tables' => $tables,
                     ];
                 }
@@ -740,7 +752,11 @@ class TournamentSystemService
             }
         }
 
-        $qualifiers = max(2, (int) ($settings['qualifiers_per_group'] ?? 2)) * count($groupDrawResults);
+        $requestedQualifiers = max(1, (int) ($settings['qualifiers_per_group'] ?? 1));
+        $qualifiers = collect($groupDrawResults)
+            ->map(fn (array $members): int => min($requestedQualifiers, count($members)))
+            ->sum();
+
         if ($qualifiers >= 2) {
             $knockout = $this->buildSingleEliminationRounds(array_fill(0, $qualifiers, null));
             foreach ($knockout as $round) {
@@ -866,6 +882,18 @@ class TournamentSystemService
         }
 
         return $names;
+    }
+
+    private function markQualifiedRows(array $rows, int $qualifiedCount): array
+    {
+        $marked = [];
+
+        foreach ($rows as $index => $row) {
+            $row['qualified'] = $index < $qualifiedCount;
+            $marked[] = $row;
+        }
+
+        return $marked;
     }
 
     private function calculateGroupCapacities(int $clubCount, int $groupCount): array

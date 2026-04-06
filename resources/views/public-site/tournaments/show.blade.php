@@ -68,7 +68,14 @@
                 <div class="mt-4 space-y-4">
                     @foreach ($standings['tables'] as $table)
                         <div class="rounded-xl border border-slate-100">
-                            <div class="border-b border-slate-100 px-4 py-3 text-sm font-bold text-slate-800">{{ $table['name'] ?? 'Overall' }}</div>
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+                                <div class="text-sm font-bold text-slate-800">{{ $table['name'] ?? 'Overall' }}</div>
+                                @if (($table['qualifiers_per_group'] ?? 0) > 0)
+                                    <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                                        Lolos: Top {{ $table['qualifiers_per_group'] }}
+                                    </span>
+                                @endif
+                            </div>
                             <div class="overflow-x-auto">
                                 <table class="min-w-full text-sm">
                                     <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -87,9 +94,9 @@
                                     </thead>
                                     <tbody>
                                         @forelse (($table['rows'] ?? []) as $row)
-                                            <tr class="border-t border-slate-100">
-                                                <td class="px-3 py-2 font-semibold text-slate-700">{{ $row['rank'] ?? '-' }}</td>
-                                                <td class="px-3 py-2 font-semibold text-slate-900">{{ $row['club_name'] ?? '-' }}</td>
+                                            <tr class="border-t border-slate-100 {{ ($row['qualified'] ?? false) ? 'bg-emerald-50/70' : '' }}">
+                                                <td class="px-3 py-2 font-semibold {{ ($row['qualified'] ?? false) ? 'text-emerald-700' : 'text-slate-700' }}">{{ $row['rank'] ?? '-' }}</td>
+                                                <td class="px-3 py-2 font-semibold {{ ($row['qualified'] ?? false) ? 'text-emerald-900' : 'text-slate-900' }}">{{ $row['club_name'] ?? '-' }}</td>
                                                 <td class="px-3 py-2 text-slate-600">{{ $row['played'] ?? 0 }}</td>
                                                 <td class="px-3 py-2 text-slate-600">{{ $row['win'] ?? 0 }}</td>
                                                 <td class="px-3 py-2 text-slate-600">{{ $row['draw'] ?? 0 }}</td>
