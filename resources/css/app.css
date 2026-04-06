@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Bebas Neue', 'Plus Jakarta Sans', sans-serif;
+}
+
+@layer base {
+    h1,
+    h2,
+    h3 {
+        font-family: var(--font-display);
+        letter-spacing: 0.02em;
+    }
+
+    body {
+        font-family: var(--font-sans);
+    }
+}
+
+@layer utilities {
+    .card-hover {
+        transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .card-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 30px -20px rgb(15 23 42 / 55%);
+    }
+}

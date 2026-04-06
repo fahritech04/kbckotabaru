@@ -1,0 +1,302 @@
+<?php
+
+namespace App\Http\Controllers\Club;
+
+use App\Http\Controllers\Controller;
+use App\Services\ImageUploadService;
+use App\Services\KbcRepository;
+use App\Services\SessionAuthService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
+
+class DashboardController extends Controller
+{
+    public function __construct(
+        private readonly KbcRepository $repository,
+        private readonly ImageUploadService $imageUploadService
+    ) {}
+
+    public function __invoke()
+    {
+        $club = $this->resolveClub();
+
+        if ($club === null) {
+            return redirect()->route('club.onboarding')->with('error', 'Lengkapi data klub terlebih dahulu.');
+        }
+
+        return view('club.dashboard', [
+            'club' => $club,
+            'players' => $this->repository->listPlayersByClub($club['id']),
+            'tournaments' => $this->repository->listTournaments(),
+            'clubLogoUrl' => $this->imageUploadService->resolveUrl($club['logo_url'] ?? null),
+            'coachKtpUrl' => $this->imageUploadService->resolveUrl($club['coach_ktp_url'] ?? null),
+            'firebaseReady' => $this->repository->isFirebaseReady(),
+            'firebaseError' => $this->repository->firebaseError(),
+        ]);
+    }
+
+    public function showOnboarding()
+    {
+        if ($this->resolveClub() !== null) {
+            return redirect()->route('club.dashboard');
+        }
+
+        $authUser = session(SessionAuthService::SESSION_KEY_CLUB);
+        abort_if($authUser === null, 403);
+
+        return view('club.onboarding', [
+            'tournaments' => $this->repository->listTournaments(),
+            'authUser' => $authUser,
+        ]);
+    }
+
+    public function storeOnboarding(Request $request): RedirectResponse
+    {
+        if ($this->resolveClub() !== null) {
+            return redirect()->route('club.dashboard');
+        }
+
+        $authUser = session(SessionAuthService::SESSION_KEY_CLUB);
+        abort_if($authUser === null, 403);
+
+        $payload = $request->validate([
+            'manager_name' => ['required', 'string', 'max:120'],
+            'manager_phone' => ['required', 'string', 'max:30'],
+            'club_email' => ['required', 'email'],
+            'club_name' => ['required', 'string', 'max:150'],
+            'coach' => ['required', 'string', 'max:120'],
+            'tournament_id' => ['required', 'string'],
+            'club_logo' => ['required', 'image', 'max:4096'],
+            'coach_ktp' => ['required', 'image', 'max:4096'],
+            'players' => ['nullable', 'array', 'max:15'],
+            'players.*.name' => ['nullable', 'string', 'max:150'],
+            'players.*.jersey_number' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'players.*.photo' => ['nullable', 'image', 'max:4096'],
+            'players.*.ktp_image' => ['nullable', 'image', 'max:4096'],
+        ]);
+
+        if ($this->repository->findTournament($payload['tournament_id']) === null) {
+            return back()->withInput()->with('error', 'Turnamen yang dipilih tidak ditemukan.');
+        }
+
+        $participants = $this->normalizeParticipantRows($request, $payload['players'] ?? []);
+
+        $uploadedPaths = [];
+        $createdPlayerIds = [];
+        $createdClubId = null;
+
+        $clubLogoPath = $this->imageUploadService->store($request->file('club_logo'), 'clubs/logos');
+        $coachKtpPath = $this->imageUploadService->store($request->file('coach_ktp'), 'clubs/coach-ktp');
+
+        if ($clubLogoPath !== null) {
+            $uploadedPaths[] = $clubLogoPath;
+        }
+
+        if ($coachKtpPath !== null) {
+            $uploadedPaths[] = $coachKtpPath;
+        }
+
+        try {
+            $club = $this->repository->createClub([
+                'name' => $payload['club_name'],
+                'city' => 'Kotabaru',
+                'coach' => $payload['coach'],
+                'wins' => 0,
+                'losses' => 0,
+                'description' => null,
+                'logo_url' => $clubLogoPath,
+                'coach_ktp_url' => $coachKtpPath,
+                'tournament_id' => $payload['tournament_id'],
+                'manager_name' => $payload['manager_name'],
+                'manager_email' => strtolower($authUser['email'] ?? $payload['club_email']),
+                'manager_phone' => $payload['manager_phone'],
+                'club_email' => strtolower($payload['club_email']),
+                'owner_user_id' => $authUser['id'],
+            ]);
+
+            $createdClubId = $club['id'];
+
+            $this->repository->updateUser($authUser['id'], [
+                'name' => $payload['manager_name'],
+                'club_id' => $club['id'],
+            ]);
+            session()->put(SessionAuthService::SESSION_KEY_CLUB.'.name', $payload['manager_name']);
+            session()->put(SessionAuthService::SESSION_KEY_CLUB.'.club_id', $club['id']);
+
+            foreach ($participants as $participant) {
+                $photoPath = $this->imageUploadService->store($participant['photo_file'] ?? null, 'clubs/players');
+                $ktpPath = $this->imageUploadService->store($participant['ktp_file'] ?? null, 'clubs/players-ktp');
+
+                if ($photoPath !== null) {
+                    $uploadedPaths[] = $photoPath;
+                }
+
+                if ($ktpPath !== null) {
+                    $uploadedPaths[] = $ktpPath;
+                }
+
+                $createdPlayer = $this->repository->createPlayer([
+                    'club_id' => $club['id'],
+                    'name' => $participant['name'],
+                    'jersey_number' => $participant['jersey_number'],
+                    'photo_url' => $photoPath,
+                    'ktp_url' => $ktpPath,
+                    'position' => null,
+                ]);
+
+                $createdPlayerIds[] = $createdPlayer['id'];
+            }
+        } catch (RuntimeException $exception) {
+            foreach ($createdPlayerIds as $playerId) {
+                $this->repository->deletePlayer($playerId);
+            }
+
+            if ($createdClubId !== null) {
+                $this->repository->deleteClub($createdClubId);
+                $this->repository->updateUser($authUser['id'], ['club_id' => null]);
+                session()->put(SessionAuthService::SESSION_KEY_CLUB.'.club_id', null);
+            }
+
+            foreach ($uploadedPaths as $path) {
+                Storage::disk('public')->delete($path);
+            }
+
+            return back()->withInput()->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('club.dashboard')->with('success', 'Data klub berhasil disimpan.');
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $club = $this->resolveClub();
+
+        abort_if($club === null, 404, 'Data klub tidak ditemukan.');
+
+        $payload = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'coach' => ['required', 'string', 'max:120'],
+            'tournament_id' => ['required', 'string'],
+            'manager_name' => ['required', 'string', 'max:120'],
+            'manager_phone' => ['required', 'string', 'max:30'],
+            'club_email' => ['required', 'email'],
+            'description' => ['nullable', 'string'],
+            'club_logo' => ['nullable', 'image', 'max:4096'],
+            'coach_ktp' => ['nullable', 'image', 'max:4096'],
+        ]);
+
+        if ($this->repository->findTournament($payload['tournament_id']) === null) {
+            return back()->withInput()->with('error', 'Turnamen yang dipilih tidak ditemukan.');
+        }
+
+        $payload['logo_url'] = $this->imageUploadService->store(
+            $request->file('club_logo'),
+            'clubs/logos',
+            $club['logo_url'] ?? null
+        );
+        $payload['coach_ktp_url'] = $this->imageUploadService->store(
+            $request->file('coach_ktp'),
+            'clubs/coach-ktp',
+            $club['coach_ktp_url'] ?? null
+        );
+
+        try {
+            $this->repository->updateClub($club['id'], [
+                'name' => $payload['name'],
+                'coach' => $payload['coach'],
+                'tournament_id' => $payload['tournament_id'],
+                'manager_name' => $payload['manager_name'],
+                'manager_phone' => $payload['manager_phone'],
+                'club_email' => strtolower($payload['club_email']),
+                'description' => $payload['description'] ?? null,
+                'logo_url' => $payload['logo_url'] ?? ($club['logo_url'] ?? null),
+                'coach_ktp_url' => $payload['coach_ktp_url'] ?? ($club['coach_ktp_url'] ?? null),
+            ]);
+
+            $ownerId = $club['owner_user_id'] ?? null;
+            if ($ownerId !== null) {
+                $this->repository->updateUser($ownerId, ['name' => $payload['manager_name']]);
+                session()->put(SessionAuthService::SESSION_KEY_CLUB.'.name', $payload['manager_name']);
+            }
+        } catch (RuntimeException $exception) {
+            return back()->withInput()->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('club.dashboard')->with('success', 'Profil klub berhasil diperbarui.');
+    }
+
+    private function normalizeParticipantRows(Request $request, array $players): array
+    {
+        $rows = [];
+        $jerseyNumbers = [];
+
+        foreach ($players as $index => $player) {
+            $name = trim((string) ($player['name'] ?? ''));
+            $jerseyNumber = $player['jersey_number'] ?? null;
+            $photoFile = $request->file("players.{$index}.photo");
+            $ktpFile = $request->file("players.{$index}.ktp_image");
+            $hasJerseyNumber = $jerseyNumber !== null && $jerseyNumber !== '';
+
+            $hasAnyInput = $name !== '' || $hasJerseyNumber || $photoFile !== null || $ktpFile !== null;
+
+            if (! $hasAnyInput) {
+                continue;
+            }
+
+            if ($name === '') {
+                throw ValidationException::withMessages([
+                    "players.{$index}.name" => 'Nama peserta wajib diisi jika baris peserta digunakan.',
+                ]);
+            }
+
+            if ($jerseyNumber === null || $jerseyNumber === '') {
+                throw ValidationException::withMessages([
+                    "players.{$index}.jersey_number" => 'Nomor punggung wajib diisi jika baris peserta digunakan.',
+                ]);
+            }
+
+            $number = (int) $jerseyNumber;
+            if (in_array($number, $jerseyNumbers, true)) {
+                throw ValidationException::withMessages([
+                    "players.{$index}.jersey_number" => 'Nomor punggung duplikat pada form peserta.',
+                ]);
+            }
+            $jerseyNumbers[] = $number;
+
+            $rows[] = [
+                'name' => $name,
+                'jersey_number' => $number,
+                'photo_file' => $photoFile,
+                'ktp_file' => $ktpFile,
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function resolveClub(): ?array
+    {
+        $authUser = session(SessionAuthService::SESSION_KEY_CLUB);
+
+        if ($authUser === null) {
+            return null;
+        }
+
+        $clubId = $authUser['club_id'] ?? null;
+
+        if ($clubId !== null) {
+            return $this->repository->findClub($clubId, true);
+        }
+
+        $club = $this->repository->findClubByOwnerUserId($authUser['id'], true);
+
+        if ($club !== null) {
+            session()->put(SessionAuthService::SESSION_KEY_CLUB.'.club_id', $club['id']);
+        }
+
+        return $club;
+    }
+}
