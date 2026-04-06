@@ -352,36 +352,70 @@ class TournamentSystemService
             ->filter(fn (array $match): bool => ($match['status'] ?? 'scheduled') === 'selesai')
             ->filter(fn (array $match): bool => ($match['affects_standings'] ?? true) === true);
 
-        $isGrouped = $systemCode === self::SYSTEM_GROUP_KNOCKOUT
-            && $tournamentMatches->contains(fn (array $match): bool => trim((string) ($match['group'] ?? '')) !== '');
+        if ($systemCode === self::SYSTEM_GROUP_KNOCKOUT) {
+            $groupDrawResults = $this->normalizeGroupDrawResults((array) ($tournament['group_draw_results'] ?? []));
 
-        if (! $isGrouped) {
-            return [
-                'enabled' => true,
-                'title' => 'Klasemen',
-                'tables' => [
-                    [
-                        'name' => 'Overall',
-                        'rows' => $this->calculateStandingRows($clubIndex, $tournamentMatches->all(), $systemCode),
-                    ],
-                ],
-            ];
-        }
+            if ($groupDrawResults === []) {
+                $groupDrawResults = collect($matches)
+                    ->filter(fn (array $match): bool => ($match['tournament_id'] ?? null) === ($tournament['id'] ?? null))
+                    ->filter(fn (array $match): bool => trim((string) ($match['group'] ?? '')) !== '')
+                    ->groupBy(fn (array $match): string => trim((string) ($match['group'] ?? '')))
+                    ->map(function ($groupMatches): array {
+                        return collect($groupMatches)
+                            ->flatMap(fn (array $match): array => [
+                                (string) ($match['home_club_id'] ?? ''),
+                                (string) ($match['away_club_id'] ?? ''),
+                            ])
+                            ->filter(fn (string $clubId): bool => $clubId !== '')
+                            ->unique()
+                            ->values()
+                            ->all();
+                    })
+                    ->all();
+            }
 
-        $tables = [];
-        $grouped = $tournamentMatches->groupBy(fn (array $match): string => (string) ($match['group'] ?? 'Group'));
+            if ($groupDrawResults !== []) {
+                $tables = [];
 
-        foreach ($grouped as $groupName => $groupMatches) {
-            $tables[] = [
-                'name' => $groupName,
-                'rows' => $this->calculateStandingRows($clubIndex, $groupMatches->all(), $systemCode),
-            ];
+                foreach ($groupDrawResults as $groupName => $groupClubIds) {
+                    $groupClubIndex = collect($groupClubIds)
+                        ->mapWithKeys(fn (string $clubId): array => [$clubId => $clubIndex->get($clubId)])
+                        ->filter();
+
+                    if ($groupClubIndex->isEmpty()) {
+                        continue;
+                    }
+
+                    $groupMatches = $tournamentMatches
+                        ->filter(fn (array $match): bool => trim((string) ($match['group'] ?? '')) === (string) $groupName)
+                        ->values()
+                        ->all();
+
+                    $tables[] = [
+                        'name' => $groupName,
+                        'rows' => $this->calculateStandingRows($groupClubIndex, $groupMatches, $systemCode),
+                    ];
+                }
+
+                if ($tables !== []) {
+                    return [
+                        'enabled' => true,
+                        'title' => 'Klasemen Fase Grup',
+                        'tables' => $tables,
+                    ];
+                }
+            }
         }
 
         return [
             'enabled' => true,
-            'title' => 'Klasemen Fase Grup',
-            'tables' => $tables,
+            'title' => 'Klasemen',
+            'tables' => [
+                [
+                    'name' => 'Overall',
+                    'rows' => $this->calculateStandingRows($clubIndex, $tournamentMatches->all(), $systemCode),
+                ],
+            ],
         ];
     }
 
@@ -751,10 +785,13 @@ class TournamentSystemService
 
         $shuffledClubIds = array_values($clubIds);
         shuffle($shuffledClubIds);
+        $capacities = $this->calculateGroupCapacities(count($shuffledClubIds), count($groupNames));
 
-        foreach ($shuffledClubIds as $index => $clubId) {
-            $groupName = $groupNames[$index % count($groupNames)];
-            $grouped[$groupName][] = $clubId;
+        $offset = 0;
+        foreach ($groupNames as $groupIndex => $groupName) {
+            $take = $capacities[$groupIndex] ?? 0;
+            $grouped[$groupName] = array_slice($shuffledClubIds, $offset, $take);
+            $offset += $take;
         }
 
         return $grouped;
@@ -796,6 +833,12 @@ class TournamentSystemService
         foreach ($expectedGroups as $groupName) {
             $orderedGroups[$groupName] = $groupDrawResults[$groupName];
         }
+        $expectedCapacities = $this->calculateGroupCapacities(count($clubIds), $groupCount);
+        foreach (array_values($orderedGroups) as $groupIndex => $members) {
+            if (count($members) !== ($expectedCapacities[$groupIndex] ?? 0)) {
+                return false;
+            }
+        }
 
         $drawnClubIds = collect($orderedGroups)
             ->flatten()
@@ -811,13 +854,6 @@ class TournamentSystemService
         if ($drawnClubIds !== $expectedClubIds) {
             return false;
         }
-
-        foreach ($orderedGroups as $members) {
-            if (count($members) === 0) {
-                return false;
-            }
-        }
-
         return true;
     }
 
@@ -830,6 +866,23 @@ class TournamentSystemService
         }
 
         return $names;
+    }
+
+    private function calculateGroupCapacities(int $clubCount, int $groupCount): array
+    {
+        if ($groupCount <= 0) {
+            return [];
+        }
+
+        $base = intdiv($clubCount, $groupCount);
+        $remainder = $clubCount % $groupCount;
+        $capacities = [];
+
+        for ($i = 0; $i < $groupCount; $i++) {
+            $capacities[] = $base + ($i < $remainder ? 1 : 0);
+        }
+
+        return $capacities;
     }
 
     private function buildSwissRounds(array $clubIds, array $settings): array

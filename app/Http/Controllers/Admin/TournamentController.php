@@ -360,6 +360,14 @@ class TournamentController extends Controller
 
     private function isValidGroupDrawCoverage(array $groupDrawResults, array $clubIds): bool
     {
+        $groupCount = count($groupDrawResults);
+        $expectedCapacities = $this->calculateGroupCapacities(count($clubIds), $groupCount);
+        foreach (array_values($groupDrawResults) as $groupIndex => $members) {
+            if (count($members) !== ($expectedCapacities[$groupIndex] ?? 0)) {
+                return false;
+            }
+        }
+
         $assigned = collect($groupDrawResults)
             ->flatten()
             ->map(fn ($clubId): string => (string) $clubId)
@@ -374,5 +382,22 @@ class TournamentController extends Controller
         sort($clubIds);
 
         return $assigned === $clubIds;
+    }
+
+    private function calculateGroupCapacities(int $clubCount, int $groupCount): array
+    {
+        if ($groupCount <= 0) {
+            return [];
+        }
+
+        $base = intdiv($clubCount, $groupCount);
+        $remainder = $clubCount % $groupCount;
+        $capacities = [];
+
+        for ($i = 0; $i < $groupCount; $i++) {
+            $capacities[] = $base + ($i < $remainder ? 1 : 0);
+        }
+
+        return $capacities;
     }
 }

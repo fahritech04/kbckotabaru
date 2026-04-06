@@ -15,7 +15,7 @@
         <div class="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Turnamen</div>
             <h2 class="mt-1 text-lg font-black text-slate-900">{{ $tournament['name'] ?? '-' }} ({{ $tournament['season'] ?? '-' }})</h2>
-            <p class="mt-1 text-sm text-slate-600">Total Klub: {{ count($clubs) }} • Total Grup: {{ $groupCount }}</p>
+            <p class="mt-1 text-sm text-slate-600">Total Klub: {{ count($clubs) }} &middot; Total Grup: {{ $groupCount }}</p>
         </div>
 
         <div class="grid gap-5 xl:grid-cols-[320px,1fr]">
@@ -96,6 +96,32 @@
                 return arr;
             };
 
+            const calculateCapacities = (teamCount, groupsCount) => {
+                const capacities = [];
+                const base = Math.floor(teamCount / groupsCount);
+                const remainder = teamCount % groupsCount;
+
+                for (let i = 0; i < groupsCount; i += 1) {
+                    capacities.push(base + (i < remainder ? 1 : 0));
+                }
+
+                return capacities;
+            };
+
+            const buildGroupSequence = (teamCount, names) => {
+                const capacities = calculateCapacities(teamCount, names.length);
+                const sequence = [];
+
+                names.forEach((groupName, groupIndex) => {
+                    const slots = capacities[groupIndex] || 0;
+                    for (let i = 0; i < slots; i += 1) {
+                        sequence.push(groupName);
+                    }
+                });
+
+                return sequence;
+            };
+
             const appendLog = (text) => {
                 const row = document.createElement('div');
                 row.className = 'rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700';
@@ -144,6 +170,7 @@
                 groupNames.forEach((groupName) => {
                     assignments[groupName] = [];
                 });
+                const groupSequence = buildGroupSequence(shuffledTeams.length, groupNames);
 
                 let cursor = 0;
                 const stepDuration = 900;
@@ -162,7 +189,7 @@
                     }
 
                     const team = shuffledTeams[cursor];
-                    const groupName = groupNames[cursor % groupNames.length];
+                    const groupName = groupSequence[cursor] || groupNames[groupNames.length - 1];
                     assignments[groupName].push(team.id);
 
                     const list = getGroupListElement(groupName);
