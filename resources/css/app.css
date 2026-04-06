@@ -12,15 +12,158 @@
 }
 
 @layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
     h1,
     h2,
     h3 {
         font-family: var(--font-display);
         letter-spacing: 0.02em;
+        line-height: 1.08;
     }
 
     body {
         font-family: var(--font-sans);
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection {
+        background-color: rgb(251 146 60 / 0.3);
+    }
+
+    input[type='text'],
+    input[type='email'],
+    input[type='password'],
+    input[type='number'],
+    input[type='date'],
+    input[type='datetime-local'],
+    input[type='url'],
+    input[type='file'],
+    select,
+    textarea {
+        border-radius: 0.8rem;
+        border: 1px solid rgb(226 232 240);
+        width: 100%;
+        font-size: 0.875rem;
+        padding: 0.625rem 0.9rem;
+        background-color: rgb(255 255 255);
+        transition: box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
+    }
+
+    input[type='file'] {
+        padding: 0.5rem 0.7rem;
+    }
+
+    input[type='text']:focus,
+    input[type='email']:focus,
+    input[type='password']:focus,
+    input[type='number']:focus,
+    input[type='date']:focus,
+    input[type='datetime-local']:focus,
+    input[type='url']:focus,
+    input[type='file']:focus,
+    select:focus,
+    textarea:focus {
+        border-color: rgb(251 146 60);
+        box-shadow: 0 0 0 4px rgb(251 146 60 / 0.16);
+        outline: none;
+    }
+}
+
+@layer components {
+    .app-container {
+        @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+    }
+
+    .surface-card {
+        @apply rounded-2xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur;
+    }
+
+    .surface-muted {
+        @apply rounded-2xl border border-slate-200 bg-slate-50/80;
+    }
+
+    .btn-primary {
+        @apply inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-slate-700;
+    }
+
+    .btn-secondary {
+        @apply inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-100;
+    }
+
+    .btn-accent {
+        @apply inline-flex items-center justify-center rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-orange-600;
+    }
+
+    .btn-danger {
+        @apply inline-flex items-center justify-center rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-rose-600;
+    }
+
+    .badge {
+        @apply inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-600;
+    }
+
+    .admin-headline {
+        @apply text-3xl font-black text-slate-900 sm:text-4xl;
+    }
+
+    .admin-subline {
+        @apply mt-2 text-sm text-slate-500;
+    }
+
+    .metric-card {
+        @apply rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur;
+    }
+
+    .metric-label {
+        @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+    }
+
+    .metric-value {
+        @apply mt-2 text-3xl font-black text-slate-900;
+    }
+
+    .table-shell {
+        @apply overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/95 shadow-sm;
+    }
+
+    .table-modern {
+        @apply min-w-full text-sm;
+    }
+
+    .table-modern thead {
+        @apply bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-500;
+    }
+
+    .table-modern th {
+        @apply px-4 py-3 font-semibold;
+    }
+
+    .table-modern tbody tr {
+        @apply border-t border-slate-100;
+    }
+
+    .table-modern td {
+        @apply px-4 py-3 align-top;
+    }
+
+    .nav-link {
+        @apply rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100;
+    }
+
+    .nav-link-active {
+        @apply bg-slate-900 text-white hover:bg-slate-800;
+    }
+
+    .summary-reset {
+        list-style: none;
+    }
+
+    .summary-reset::-webkit-details-marker {
+        display: none;
     }
 }
 
@@ -32,5 +175,10 @@
     .card-hover:hover {
         transform: translateY(-2px);
         box-shadow: 0 14px 30px -20px rgb(15 23 42 / 55%);
+    }
+
+    .bg-grid-fade {
+        background-image: linear-gradient(to right, rgb(148 163 184 / 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgb(148 163 184 / 0.08) 1px, transparent 1px);
+        background-size: 24px 24px;
     }
 }

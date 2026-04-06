@@ -91,6 +91,6 @@
 </div>
 
 <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-    <a href="{{ route('admin.clubs.index') }}" class="w-full rounded-xl border border-slate-200 px-4 py-2 text-center text-sm font-semibold text-slate-700 sm:w-auto">Batal</a>
-    <button type="submit" class="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white sm:w-auto">{{ $isEdit ? 'Update Klub' : 'Simpan Klub' }}</button>
+    <a href="{{ route('admin.clubs.index') }}" class="btn-secondary w-full sm:w-auto">Batal</a>
+    <button type="submit" class="btn-primary w-full sm:w-auto">{{ $isEdit ? 'Update Klub' : 'Simpan Klub' }}</button>
 </div>

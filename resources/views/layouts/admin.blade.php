@@ -9,41 +9,23 @@
 </head>
 
 <body class="min-h-screen bg-slate-100 text-slate-800">
-    <div class="grid min-h-screen lg:grid-cols-[280px_1fr]">
-        <aside class="bg-slate-950 px-4 py-6 text-slate-200 sm:px-6 lg:px-6 lg:py-8">
-            <a href="{{ route('admin.dashboard') }}" class="mb-6 flex items-center gap-3 lg:mb-8">
-                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500 font-black text-white">KBC</div>
-                <div>
-                    <div class="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Admin Panel</div>
-                    <div class="text-sm font-black">Kotabaru Basketball</div>
-                </div>
-            </a>
+    <div class="pointer-events-none fixed inset-0 -z-20 bg-slate-100"></div>
+    <div class="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[320px] bg-[radial-gradient(circle_at_top_left,_#fdba74_0,_transparent_48%),radial-gradient(circle_at_top_right,_#7dd3fc_0,_transparent_40%)]"></div>
+    <div class="pointer-events-none fixed inset-0 -z-10 bg-grid-fade opacity-30"></div>
 
-            <nav class="grid grid-cols-2 gap-2 text-sm font-semibold sm:grid-cols-3 lg:grid-cols-1">
-                <a href="{{ route('admin.dashboard') }}" class="block rounded-lg px-3 py-2 {{ request()->routeIs('admin.dashboard') ? 'bg-orange-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Dashboard</a>
-                <a href="{{ route('admin.tournaments.index') }}" class="block rounded-lg px-3 py-2 {{ request()->routeIs('admin.tournaments.*') ? 'bg-orange-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Turnamen</a>
-                <a href="{{ route('admin.clubs.index') }}" class="block rounded-lg px-3 py-2 {{ request()->routeIs('admin.clubs.*') ? 'bg-orange-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Klub</a>
-                <a href="{{ route('admin.schedules.index') }}" class="block rounded-lg px-3 py-2 {{ request()->routeIs('admin.schedules.*') ? 'bg-orange-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Jadwal</a>
-                <a href="{{ route('admin.matches.index') }}" class="block rounded-lg px-3 py-2 {{ request()->routeIs('admin.matches.*') ? 'bg-orange-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Pertandingan</a>
-            </nav>
-
-            <div class="mt-6 grid grid-cols-2 gap-2 text-sm lg:mt-10 lg:grid-cols-1">
-                <a href="{{ route('home') }}" class="block rounded-lg border border-slate-700 px-3 py-2 text-center text-slate-200 hover:bg-slate-800">Lihat Website</a>
-                <form method="POST" action="{{ route('admin.logout') }}">
-                    @csrf
-                    <button type="submit" class="w-full rounded-lg bg-slate-800 px-3 py-2 font-semibold text-slate-200 hover:bg-slate-700">Logout</button>
-                </form>
-            </div>
-        </aside>
+    <div class="grid min-h-screen md:grid-cols-[290px_1fr]">
+        @include('partials.nav.admin')
 
         <div>
-            <header class="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+            <header class="border-b border-slate-200/80 bg-white/80 px-4 py-4 backdrop-blur sm:px-6">
                 <div class="text-sm text-slate-500">Selamat datang, <span class="font-semibold text-slate-700">{{ $adminAuthUser['name'] ?? 'Admin' }}</span></div>
             </header>
 
-            <main class="px-4 py-6 sm:px-6">
+            <main class="px-4 py-6 sm:px-6 lg:px-8">
                 @include('partials.alerts')
-                @yield('content')
+                <div class="mx-auto w-full max-w-7xl">
+                    @yield('content')
+                </div>
             </main>
         </div>
     </div>

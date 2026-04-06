@@ -1,12 +1,20 @@
 ﻿@extends('layouts.admin', ['title' => 'Tambah Turnamen'])
 
 @section('content')
-    <section class="rounded-2xl bg-white p-6 shadow-sm">
-        <h1 class="text-2xl font-black text-slate-900">Tambah Turnamen</h1>
-        <form action="{{ route('admin.tournaments.store') }}" method="POST" class="mt-6">
+    @include('admin.partials.page-header', [
+        'title' => 'Tambah Turnamen',
+        'description' => 'Tambahkan turnamen baru untuk musim berjalan.',
+        'secondaryAction' => [
+            'label' => 'Kembali',
+            'url' => route('admin.tournaments.index'),
+            'class' => 'btn-secondary',
+        ],
+    ])
+
+    <section class="mt-6 surface-card p-6">
+        <form action="{{ route('admin.tournaments.store') }}" method="POST" class="space-y-1">
             @csrf
             @include('admin.tournaments._form')
         </form>
     </section>
 @endsection
-

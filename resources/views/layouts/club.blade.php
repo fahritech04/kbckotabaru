@@ -9,32 +9,12 @@
 </head>
 
 <body class="min-h-screen bg-slate-100 text-slate-800">
-    <header class="border-b border-slate-200 bg-white">
-        <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-            <a href="{{ route('club.dashboard') }}" class="flex items-center gap-3">
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white">KBC</div>
-                <div>
-                    <div class="text-xs font-semibold uppercase tracking-[0.2em] text-orange-600">Portal Klub</div>
-                    <div class="text-sm font-black text-slate-900">Kotabaru Basketball</div>
-                </div>
-            </a>
+    <div class="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[320px] bg-[radial-gradient(circle_at_top_left,_#fdba74_0,_transparent_45%),radial-gradient(circle_at_top_right,_#7dd3fc_0,_transparent_38%)]"></div>
+    <div class="pointer-events-none fixed inset-0 -z-10 bg-grid-fade opacity-35"></div>
 
-            <div class="w-full overflow-x-auto lg:w-auto">
-                <nav class="flex min-w-max items-center gap-2 text-sm font-semibold">
-                    <a href="{{ route('club.onboarding') }}" class="rounded-lg px-3 py-2 {{ request()->routeIs('club.onboarding*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">Onboarding</a>
-                    <a href="{{ route('club.dashboard') }}" class="rounded-lg px-3 py-2 {{ request()->routeIs('club.dashboard') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">Profil Klub</a>
-                    <a href="{{ route('club.players.index') }}" class="rounded-lg px-3 py-2 {{ request()->routeIs('club.players.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">Pemain</a>
-                </nav>
-            </div>
+    @include('partials.nav.club')
 
-            <form method="POST" action="{{ route('club.logout') }}" class="w-full lg:w-auto">
-                @csrf
-                <button type="submit" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 lg:w-auto">Logout Klub</button>
-            </form>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <main class="app-container py-6">
         @include('partials.alerts')
         @yield('content')
     </main>
