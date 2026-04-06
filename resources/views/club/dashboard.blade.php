@@ -1,4 +1,4 @@
-@extends('layouts.club', ['title' => 'Dashboard Klub'])
+﻿@extends('layouts.club-portal', ['title' => 'Dashboard Klub'])
 
 @section('content')
     <div class="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
@@ -100,3 +100,4 @@
         </section>
     </div>
 @endsection
+

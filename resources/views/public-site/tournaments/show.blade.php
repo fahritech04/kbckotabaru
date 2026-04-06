@@ -1,4 +1,4 @@
-﻿@extends('layouts.app', ['title' => $tournament['name'].' - KBC Kotabaru'])
+﻿@extends('layouts.public-site', ['title' => $tournament['name'].' - KBC Kotabaru'])
 
 @section('content')
     <section class="rounded-3xl bg-slate-900 px-5 py-8 text-white sm:px-8 sm:py-10">
@@ -33,4 +33,5 @@
         </div>
     </section>
 @endsection
+
 

@@ -1,4 +1,4 @@
-@extends('layouts.guest', ['title' => 'Daftar Klub - KBC Kotabaru'])
+﻿@extends('layouts.auth-shell', ['title' => 'Daftar Klub - KBC Kotabaru'])
 
 @section('content')
     <div class="mx-auto w-full max-w-3xl">
@@ -30,3 +30,4 @@
         <p class="mt-4 text-sm text-slate-500">Sudah pernah daftar? <a href="{{ route('club.login') }}" class="font-semibold text-slate-700 hover:text-slate-900">Masuk klub</a></p>
     </div>
 @endsection
+

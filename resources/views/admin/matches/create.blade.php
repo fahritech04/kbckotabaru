@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Tambah Pertandingan'])
+﻿@extends('layouts.admin-panel', ['title' => 'Tambah Pertandingan'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Tambah Pertandingan',
         'description' => 'Buat data pertandingan baru beserta skor awal.',
         'secondaryAction' => [
@@ -14,7 +14,8 @@
     <section class="mt-6 surface-card p-6">
         <form action="{{ route('admin.matches.store') }}" method="POST" class="space-y-1">
             @csrf
-            @include('admin.matches._form', ['tournaments' => $tournaments, 'clubs' => $clubs, 'schedules' => $schedules])
+            @include('admin.matches.form-fields', ['tournaments' => $tournaments, 'clubs' => $clubs, 'schedules' => $schedules])
         </form>
     </section>
 @endsection
+

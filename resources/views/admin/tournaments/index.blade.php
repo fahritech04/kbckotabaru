@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Admin Turnamen'])
+﻿@extends('layouts.admin-panel', ['title' => 'Admin Turnamen'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Manajemen Turnamen',
         'description' => 'Kelola data turnamen yang tampil di website user.',
         'primaryAction' => [
@@ -70,3 +70,4 @@
         </table>
     </div>
 @endsection
+

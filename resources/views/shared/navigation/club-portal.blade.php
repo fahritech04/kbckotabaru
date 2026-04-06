@@ -6,7 +6,7 @@
     ];
 @endphp
 
-<header class="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+<header id="club-navbar" data-fixed-navbar class="fixed inset-x-0 top-0 z-40 border-b border-slate-200 bg-white">
     <div class="app-container py-4">
         <div class="relative flex items-center gap-3">
             <a href="{{ route('home') }}" class="mr-auto flex items-center gap-3">

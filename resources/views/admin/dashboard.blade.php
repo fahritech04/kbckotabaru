@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Dashboard Admin - KBC Kotabaru'])
+﻿@extends('layouts.admin-panel', ['title' => 'Dashboard Admin - KBC Kotabaru'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Dashboard Admin',
         'description' => 'Ringkasan real-time untuk seluruh data kompetisi KBC Kotabaru.',
     ])
@@ -59,3 +59,4 @@
         </section>
     </div>
 @endsection
+

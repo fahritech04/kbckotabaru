@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Tambah Jadwal'])
+﻿@extends('layouts.admin-panel', ['title' => 'Tambah Jadwal'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Tambah Jadwal',
         'description' => 'Tambahkan agenda resmi pertandingan.',
         'secondaryAction' => [
@@ -14,7 +14,8 @@
     <section class="mt-6 surface-card p-6">
         <form action="{{ route('admin.schedules.store') }}" method="POST" class="space-y-1">
             @csrf
-            @include('admin.schedules._form', ['tournaments' => $tournaments])
+            @include('admin.schedules.form-fields', ['tournaments' => $tournaments])
         </form>
     </section>
 @endsection
+

@@ -12,12 +12,14 @@
     <div class="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[320px] bg-[radial-gradient(circle_at_top_left,_#fdba74_0,_transparent_45%),radial-gradient(circle_at_top_right,_#7dd3fc_0,_transparent_38%)]"></div>
     <div class="pointer-events-none fixed inset-0 -z-10 bg-grid-fade opacity-35"></div>
 
-    @include('partials.nav.club')
+    @include('shared.navigation.club-portal')
+    <div data-navbar-spacer aria-hidden="true"></div>
 
     <main class="app-container py-6">
-        @include('partials.alerts')
+        @include('shared.alerts')
         @yield('content')
     </main>
 </body>
 
 </html>
+

@@ -1,4 +1,4 @@
-﻿@extends('layouts.app', ['title' => 'Jadwal - KBC Kotabaru'])
+﻿@extends('layouts.public-site', ['title' => 'Jadwal - KBC Kotabaru'])
 
 @section('content')
     <section class="mb-6 rounded-2xl bg-white p-5 shadow-sm sm:p-6">
@@ -52,4 +52,5 @@
         </div>
     </section>
 @endsection
+
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -23,10 +23,11 @@
         </a>
 
         <div class="mx-auto mt-6 w-full max-w-2xl rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm backdrop-blur sm:mt-8 sm:p-8">
-            @include('partials.alerts')
+            @include('shared.alerts')
             @yield('content')
         </div>
     </main>
 </body>
 
 </html>
+

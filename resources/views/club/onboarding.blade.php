@@ -1,4 +1,4 @@
-@extends('layouts.club', ['title' => 'Onboarding Klub'])
+﻿@extends('layouts.club-portal', ['title' => 'Onboarding Klub'])
 
 @section('content')
     @php
@@ -94,3 +94,4 @@
         </form>
     </section>
 @endsection
+

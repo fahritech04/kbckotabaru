@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Edit Klub'])
+﻿@extends('layouts.admin-panel', ['title' => 'Edit Klub'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Edit Klub',
         'description' => 'Perbarui profil klub dan dokumen resmi.',
         'secondaryAction' => [
@@ -15,7 +15,8 @@
         <form action="{{ route('admin.clubs.update', $club['id']) }}" method="POST" enctype="multipart/form-data" class="space-y-1">
             @csrf
             @method('PUT')
-            @include('admin.clubs._form', ['club' => $club, 'tournaments' => $tournaments, 'clubLogoUrl' => $clubLogoUrl])
+            @include('admin.clubs.form-fields', ['club' => $club, 'tournaments' => $tournaments, 'clubLogoUrl' => $clubLogoUrl])
         </form>
     </section>
 @endsection
+

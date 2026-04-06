@@ -1,4 +1,4 @@
-﻿@extends('layouts.club', ['title' => 'Tambah Pemain'])
+﻿@extends('layouts.club-portal', ['title' => 'Tambah Pemain'])
 
 @section('content')
     <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -7,7 +7,8 @@
 
         <form method="POST" action="{{ route('club.players.store') }}" enctype="multipart/form-data" class="mt-6">
             @csrf
-            @include('club.players._form')
+            @include('club.players.form-fields')
         </form>
     </section>
 @endsection
+

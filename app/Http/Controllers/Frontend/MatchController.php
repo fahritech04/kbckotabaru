@@ -22,7 +22,7 @@ class MatchController extends Controller
             ->values()
             ->all();
 
-        return view('frontend.matches.index', [
+        return view('public-site.matches.index', [
             'matches' => $matches,
             'statusFilter' => $statusFilter,
             'firebaseReady' => $this->repository->isFirebaseReady(),
@@ -36,8 +36,9 @@ class MatchController extends Controller
 
         abort_if($match === null, 404);
 
-        return view('frontend.matches.show', [
+        return view('public-site.matches.show', [
             'match' => $match,
         ]);
     }
 }
+

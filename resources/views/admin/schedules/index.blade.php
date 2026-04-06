@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Admin Jadwal'])
+﻿@extends('layouts.admin-panel', ['title' => 'Admin Jadwal'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Manajemen Jadwal',
         'description' => 'Kelola event dan agenda pertandingan.',
         'primaryAction' => [
@@ -70,3 +70,4 @@
         </table>
     </div>
 @endsection
+

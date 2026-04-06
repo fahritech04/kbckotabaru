@@ -1,4 +1,4 @@
-@extends('layouts.guest', ['title' => 'Login Admin - KBC Kotabaru'])
+﻿@extends('layouts.auth-shell', ['title' => 'Login Admin - KBC Kotabaru'])
 
 @section('content')
     <div class="mx-auto w-full max-w-md">
@@ -24,3 +24,4 @@
         </form>
     </div>
 @endsection
+

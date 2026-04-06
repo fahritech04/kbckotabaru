@@ -1,4 +1,4 @@
-﻿@extends('layouts.app', ['title' => 'Klub - KBC Kotabaru'])
+﻿@extends('layouts.public-site', ['title' => 'Klub - KBC Kotabaru'])
 
 @section('content')
     @php
@@ -45,3 +45,4 @@
         @endforelse
     </section>
 @endsection
+

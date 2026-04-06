@@ -12,7 +12,7 @@ class TournamentController extends Controller
 
     public function index(): View
     {
-        return view('frontend.tournaments.index', [
+        return view('public-site.tournaments.index', [
             'tournaments' => $this->repository->listTournaments(),
             'firebaseReady' => $this->repository->isFirebaseReady(),
             'firebaseError' => $this->repository->firebaseError(),
@@ -31,9 +31,10 @@ class TournamentController extends Controller
             ->values()
             ->all();
 
-        return view('frontend.tournaments.show', [
+        return view('public-site.tournaments.show', [
             'tournament' => $tournament,
             'matches' => $matches,
         ]);
     }
 }
+

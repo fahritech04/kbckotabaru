@@ -16,7 +16,7 @@ class ClubController extends Controller
 
     public function index(): View
     {
-        return view('frontend.clubs.index', [
+        return view('public-site.clubs.index', [
             'clubs' => $this->repository->listClubs(),
             'firebaseReady' => $this->repository->isFirebaseReady(),
             'firebaseError' => $this->repository->firebaseError(),
@@ -37,7 +37,7 @@ class ClubController extends Controller
             ->values()
             ->all();
 
-        return view('frontend.clubs.show', [
+        return view('public-site.clubs.show', [
             'club' => $club,
             'matches' => $matches,
             'players' => $this->repository->listPlayersByClub($id),
@@ -45,3 +45,4 @@ class ClubController extends Controller
         ]);
     }
 }
+

@@ -1,4 +1,4 @@
-﻿@extends('layouts.app', ['title' => 'KBC Kotabaru - Liga Basket'])
+﻿@extends('layouts.public-site', ['title' => 'KBC Kotabaru - Liga Basket'])
 
 @section('content')
     <section class="relative overflow-hidden rounded-3xl bg-slate-900 px-5 py-8 text-white sm:px-8 sm:py-12">
@@ -119,4 +119,5 @@
         </div>
     </section>
 @endsection
+
 

@@ -1,4 +1,4 @@
-﻿@extends('layouts.club', ['title' => 'Edit Pemain'])
+﻿@extends('layouts.club-portal', ['title' => 'Edit Pemain'])
 
 @section('content')
     <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -8,7 +8,8 @@
         <form method="POST" action="{{ route('club.players.update', $player['id']) }}" enctype="multipart/form-data" class="mt-6">
             @csrf
             @method('PUT')
-            @include('club.players._form', ['player' => $player, 'playerPhotoUrl' => $playerPhotoUrl, 'playerKtpUrl' => $playerKtpUrl])
+            @include('club.players.form-fields', ['player' => $player, 'playerPhotoUrl' => $playerPhotoUrl, 'playerKtpUrl' => $playerKtpUrl])
         </form>
     </section>
 @endsection
+

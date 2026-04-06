@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Edit Turnamen'])
+﻿@extends('layouts.admin-panel', ['title' => 'Edit Turnamen'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Edit Turnamen',
         'description' => 'Perbarui data turnamen secara lengkap.',
         'secondaryAction' => [
@@ -15,7 +15,8 @@
         <form action="{{ route('admin.tournaments.update', $tournament['id']) }}" method="POST" class="space-y-1">
             @csrf
             @method('PUT')
-            @include('admin.tournaments._form', ['tournament' => $tournament])
+            @include('admin.tournaments.form-fields', ['tournament' => $tournament])
         </form>
     </section>
 @endsection
+

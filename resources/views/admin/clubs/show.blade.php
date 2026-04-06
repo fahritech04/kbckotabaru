@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Detail Klub'])
+﻿@extends('layouts.admin-panel', ['title' => 'Detail Klub'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Detail Klub',
         'description' => 'Informasi pendaftaran klub dan roster peserta.',
         'primaryAction' => [
@@ -77,3 +77,4 @@
         </div>
     </section>
 @endsection
+

@@ -1,4 +1,4 @@
-﻿@extends('layouts.app', ['title' => 'Daftar - KBC Kotabaru'])
+﻿@extends('layouts.public-site', ['title' => 'Daftar - KBC Kotabaru'])
 
 @section('content')
     <div class="mx-auto max-w-md surface-card p-8">
@@ -33,4 +33,5 @@
         <p class="mt-4 text-sm text-slate-500">Sudah punya akun? <a href="{{ route('login') }}" class="font-semibold text-slate-700 hover:text-slate-900">Login</a>.</p>
     </div>
 @endsection
+
 

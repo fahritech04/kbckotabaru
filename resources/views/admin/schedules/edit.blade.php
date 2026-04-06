@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Edit Jadwal'])
+﻿@extends('layouts.admin-panel', ['title' => 'Edit Jadwal'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Edit Jadwal',
         'description' => 'Perbarui detail agenda pertandingan.',
         'secondaryAction' => [
@@ -15,7 +15,8 @@
         <form action="{{ route('admin.schedules.update', $schedule['id']) }}" method="POST" class="space-y-1">
             @csrf
             @method('PUT')
-            @include('admin.schedules._form', ['schedule' => $schedule, 'tournaments' => $tournaments])
+            @include('admin.schedules.form-fields', ['schedule' => $schedule, 'tournaments' => $tournaments])
         </form>
     </section>
 @endsection
+

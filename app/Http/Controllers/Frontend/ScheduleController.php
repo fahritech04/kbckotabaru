@@ -12,10 +12,11 @@ class ScheduleController extends Controller
 
     public function index(): View
     {
-        return view('frontend.schedules.index', [
+        return view('public-site.schedules.index', [
             'schedules' => $this->repository->listSchedules(),
             'firebaseReady' => $this->repository->isFirebaseReady(),
             'firebaseError' => $this->repository->firebaseError(),
         ]);
     }
 }
+

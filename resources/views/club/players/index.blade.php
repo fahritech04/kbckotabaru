@@ -1,4 +1,4 @@
-﻿@extends('layouts.club', ['title' => 'Pemain Klub'])
+﻿@extends('layouts.club-portal', ['title' => 'Pemain Klub'])
 
 @section('content')
     <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -32,3 +32,4 @@
         @endforelse
     </div>
 @endsection
+

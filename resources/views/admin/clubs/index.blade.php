@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Admin Klub'])
+﻿@extends('layouts.admin-panel', ['title' => 'Admin Klub'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Manajemen Klub',
         'description' => 'Kelola profil klub yang muncul di website user.',
         'primaryAction' => [
@@ -78,3 +78,4 @@
         </table>
     </div>
 @endsection
+

@@ -1,7 +1,7 @@
-﻿@extends('layouts.admin', ['title' => 'Admin Pertandingan'])
+﻿@extends('layouts.admin-panel', ['title' => 'Admin Pertandingan'])
 
 @section('content')
-    @include('admin.partials.page-header', [
+    @include('admin.components.page-header', [
         'title' => 'Manajemen Pertandingan',
         'description' => 'Kelola hasil, skor, dan informasi laga.',
         'primaryAction' => [
@@ -74,3 +74,4 @@
         </table>
     </div>
 @endsection
+

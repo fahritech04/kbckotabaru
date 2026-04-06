@@ -1,4 +1,4 @@
-﻿@extends('layouts.app', ['title' => $club['name'].' - KBC Kotabaru'])
+﻿@extends('layouts.public-site', ['title' => $club['name'].' - KBC Kotabaru'])
 
 @section('content')
     <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
@@ -56,4 +56,5 @@
         </div>
     </section>
 @endsection
+
 

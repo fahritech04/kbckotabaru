@@ -17,7 +17,7 @@ class HomeController extends Controller
         $upcomingMatches = $this->repository->listUpcomingMatches(6);
         $latestMatches = collect($this->repository->listMatches())->take(6)->all();
 
-        return view('frontend.home', [
+        return view('public-site.home', [
             'tournaments' => $tournaments,
             'clubs' => $clubs,
             'upcomingMatches' => $upcomingMatches,
@@ -28,3 +28,4 @@ class HomeController extends Controller
         ]);
     }
 }
+
